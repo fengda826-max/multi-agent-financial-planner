@@ -1,4 +1,5 @@
 services:
+  # 基础设施
   postgres:
     image: postgres:16-alpine
     container_name: fp-postgres
@@ -44,6 +45,176 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-api-gateway
+    restart: unless-stopped
+    command: uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - ORCHESTRATOR_URL=http://orchestrator:8010
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Orchestrator
+  orchestrator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-orchestrator
+    restart: unless-stopped
+    command: uvicorn orchestrator.main:app --host 0.0.0.0 --port 8010 --reload
+    ports:
+      - "127.0.0.1:8010:8010"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - PORT=8010
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Agents
+  agent-profile:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-agent-profile
+    restart: unless-stopped
+    command: uvicorn agents.profile.main:app --host 0.0.0.0 --port 8001 --reload
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - ./backend:/app
+
+  agent-market:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-agent-market
+    restart: unless-stopped
+    command: uvicorn agents.market.main:app --host 0.0.0.0 --port 8002 --reload
+    ports:
+      - "127.0.0.1:8002:8002"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - ./backend:/app
+
+  agent-strategy:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-agent-strategy
+    restart: unless-stopped
+    command: uvicorn agents.strategy.main:app --host 0.0.0.0 --port 8003 --reload
+    ports:
+      - "127.0.0.1:8003:8003"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - ./backend:/app
+
+  agent-coaching:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-agent-coaching
+    restart: unless-stopped
+    command: uvicorn agents.coaching.main:app --host 0.0.0.0 --port 8004 --reload
+    ports:
+      - "127.0.0.1:8004:8004"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    volumes:
+      - ./backend:/app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-mcp-server
+    restart: unless-stopped
+    command: python -m mcp_server.main
+    volumes:
+      - ./backend:/app
+
+  # Monitors
+  monitor-market:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-monitor-market
+    restart: unless-stopped
+    command: python -m monitors.market_monitor
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    volumes:
+      - ./backend:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  monitor-user:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fp-monitor-user
+    restart: unless-stopped
+    command: python -m monitors.user_monitor
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fp-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - api-gateway
 
 volumes:
   pgdata:
