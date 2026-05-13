@@ -14,7 +14,7 @@ class AuditLog(Base):
     actor = Column(String(50))
     detail = Column(JSONB)
     ip_address = Column(String(45))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 
 class ComplianceRecord(Base):
@@ -24,8 +24,8 @@ class ComplianceRecord(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     record_type = Column(String(50))
     content = Column(JSONB, nullable=False)
-    signed_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    signed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 
 class LangGraphCheckpoint(Base):
@@ -34,5 +34,5 @@ class LangGraphCheckpoint(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     thread_id = Column(String(100), nullable=False, index=True)
     checkpoint = Column(JSONB, nullable=False)
-    metadata = Column(JSONB)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    checkpoint_metadata = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

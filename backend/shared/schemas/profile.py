@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, List
 
 
 class RiskAssessmentInput(BaseModel):
-    age: int
-    income: float
-    expenses: float
+    age: int = Field(..., ge=0, le=150)
+    income: float = Field(..., ge=0)
+    expenses: float = Field(..., ge=0)
     risk_tolerance: str
     investment_horizon: str
 
@@ -24,11 +24,11 @@ class RiskAssessmentResponse(BaseModel):
 
 class UserProfileResponse(BaseModel):
     id: UUID
-    lifecycle_stage: str
-    risk_capacity: str
-    investable_assets: float
-    monthly_surplus: float
-    kyc_level: str
+    lifecycle_stage: Optional[str] = None
+    risk_capacity: Optional[str] = None
+    investable_assets: Optional[float] = None
+    monthly_surplus: Optional[float] = None
+    kyc_level: Optional[str] = None
 
     class Config:
         from_attributes = True

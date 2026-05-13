@@ -1,14 +1,14 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
 
 
 class UserCreate(BaseModel):
-    username: str
+    username: str = Field(..., min_length=3, max_length=100)
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
-    password: str
+    password: str = Field(..., min_length=8, max_length=128)
 
 
 class UserResponse(BaseModel):
