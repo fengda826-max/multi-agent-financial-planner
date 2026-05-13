@@ -11,7 +11,7 @@ class CoachingAgent:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            model="deepseek-chat",
+            model="deepseek-v4-pro",
             api_key=settings.deepseek_api_key,
             base_url="https://api.deepseek.com/v1",
             temperature=0.7

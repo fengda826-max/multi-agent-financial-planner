@@ -11,7 +11,7 @@ class StrategyGenerationAgent:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            model="deepseek-chat",
+            model="deepseek-v4-pro",
             api_key=settings.deepseek_api_key,
             base_url="https://api.deepseek.com/v1",
             temperature=0.3
@@ -74,12 +74,27 @@ class StrategyGenerationAgent:
             HumanMessage(content=user_prompt)
         ]
 
-        response = await self.llm.ainvoke(messages)
-
-        import json
         try:
-            result = json.loads(response.content)
-        except json.JSONDecodeError:
+            response = await self.llm.ainvoke(messages)
+
+            import json
+            # 尝试提取JSON内容
+            content = response.content
+            # 如果内容包含markdown代码块，提取其中的JSON
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+
+            content = content.strip()
+            result = json.loads(content)
+
+            # 验证返回格式
+            if "four_buckets" not in result:
+                result = self._default_strategy(profile)
+
+        except Exception as e:
+            print(f"Strategy generation error: {e}")
             result = self._default_strategy(profile)
 
         result = self._apply_suitability(result, profile.get('risk_capacity', 'medium'))

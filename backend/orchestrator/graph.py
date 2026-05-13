@@ -13,62 +13,108 @@ AGENT_URLS = {
 
 async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用用户画像Agent"""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{AGENT_URLS['profile']}/analyze",
-            json={
-                "user_id": state["user_id"],
-                "risk_assessment": state["risk_assessment"]
-            },
-            timeout=30.0
-        )
-        result = response.json()
+    try:
+        risk_assessment = dict(state["risk_assessment"])
+        # 从收入/支出推算可投资资产，确保完整流程可执行
+        if "investable_assets" not in risk_assessment:
+            income = risk_assessment.get("income", 0)
+            expenses = risk_assessment.get("expenses", 0)
+            monthly_surplus = income - expenses
+            risk_assessment["investable_assets"] = max(monthly_surplus * 12 * 0.3, 0)
 
-    return {
-        "user_profile": result.get("profile", {}),
-        "needs_followup": result.get("needs_followup", False),
-        "current_step": "profile_complete"
-    }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{AGENT_URLS['profile']}/analyze",
+                json={
+                    "user_id": state["user_id"],
+                    "risk_assessment": risk_assessment
+                },
+                timeout=30.0
+            )
+            result = response.json()
+
+        return {
+            "user_profile": result.get("profile", {}),
+            "needs_followup": result.get("needs_followup", False),
+            "current_step": "profile_complete"
+        }
+    except Exception as e:
+        print(f"Profile agent error: {e}")
+        return {
+            "user_profile": {"error": str(e)},
+            "needs_followup": False,
+            "current_step": "profile_complete"
+        }
 
 
 async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用市场研判Agent"""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{AGENT_URLS['market']}/analyze",
-            json={
-                "analysis_type": "full",
-                "focus_areas": ["equity", "bond", "commodity"],
-                "time_horizon": "1y"
-            },
-            timeout=30.0
-        )
-        result = response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{AGENT_URLS['market']}/analyze",
+                json={
+                    "analysis_type": "full",
+                    "focus_areas": ["equity", "bond", "commodity"],
+                    "time_horizon": "1y"
+                },
+                timeout=60.0
+            )
 
-    return {
-        "market_analysis": result,
-        "current_step": "market_complete"
-    }
+            if response.status_code != 200:
+                print(f"Market agent returned status {response.status_code}")
+                return {
+                    "market_analysis": {"error": f"Status {response.status_code}"},
+                    "current_step": "market_complete"
+                }
+
+            result = response.json()
+
+        return {
+            "market_analysis": result,
+            "current_step": "market_complete"
+        }
+    except Exception as e:
+        print(f"Market agent error: {type(e).__name__}: {e}")
+        return {
+            "market_analysis": {"error": str(e)},
+            "current_step": "market_complete"
+        }
 
 
 async def call_strategy_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用策略生成Agent"""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{AGENT_URLS['strategy']}/generate",
-            json={
-                "user_id": state["user_id"],
-                "profile": state["user_profile"],
-                "market_analysis": state["market_analysis"]
-            },
-            timeout=30.0
-        )
-        result = response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{AGENT_URLS['strategy']}/generate",
+                json={
+                    "user_id": state["user_id"],
+                    "profile": state["user_profile"],
+                    "market_analysis": state["market_analysis"]
+                },
+                timeout=60.0
+            )
 
-    return {
-        "strategy": result,
-        "current_step": "strategy_complete"
-    }
+            if response.status_code != 200:
+                print(f"Strategy agent returned status {response.status_code}")
+                return {
+                    "strategy": {"error": f"Status {response.status_code}"},
+                    "current_step": "strategy_complete"
+                }
+
+            result = response.json()
+
+        return {
+            "strategy": result,
+            "current_step": "strategy_complete"
+        }
+    except Exception as e:
+        print(f"Strategy agent error: {type(e).__name__}: {e}")
+        return {
+            "strategy": {"error": str(e)},
+            "current_step": "strategy_complete"
+        }
 
 
 async def call_coaching_agent(state: FinancialPlanningState) -> Dict[str, Any]:

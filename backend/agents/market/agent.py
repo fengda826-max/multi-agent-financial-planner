@@ -11,7 +11,7 @@ class MarketAnalysisAgent:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            model="deepseek-chat",
+            model="deepseek-v4-pro",
             api_key=settings.deepseek_api_key,
             base_url="https://api.deepseek.com/v1",
             temperature=0.3
@@ -31,7 +31,9 @@ class MarketAnalysisAgent:
     },
     "risk_factors": ["风险1", "风险2"],
     "overall_recommendation": "总体建议"
-}"""
+}
+
+重要：只输出JSON，不要有其他内容。"""
 
         user_prompt = f"""市场数据：
 {self._format_market_data(market_data)}
@@ -43,15 +45,29 @@ class MarketAnalysisAgent:
             HumanMessage(content=user_prompt)
         ]
 
-        response = await self.llm.ainvoke(messages)
-
-        import json
         try:
-            result = json.loads(response.content)
-        except json.JSONDecodeError:
-            result = self._default_analysis(market_data)
+            response = await self.llm.ainvoke(messages)
 
-        return result
+            import json
+            # 尝试提取JSON内容
+            content = response.content
+            # 如果内容包含markdown代码块，提取其中的JSON
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+
+            content = content.strip()
+            result = json.loads(content)
+
+            # 验证返回格式
+            if "market_overview" not in result:
+                result = self._default_analysis(market_data)
+
+            return result
+        except Exception as e:
+            print(f"Market analysis error: {e}")
+            return self._default_analysis(market_data)
 
     def _format_market_data(self, market_data: Dict[str, Any]) -> str:
         """格式化市场数据"""

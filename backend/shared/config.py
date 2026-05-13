@@ -1,9 +1,11 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
     # Database
+    database_url: str = "postgresql+asyncpg://financial_planner:dev_password_123@localhost:5432/financial_planner"
     postgres_user: str = "financial_planner"
     postgres_password: str = "dev_password_123"
     postgres_db: str = "financial_planner"
@@ -14,6 +16,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # RabbitMQ
+    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
     rabbitmq_user: str = "guest"
     rabbitmq_password: str = "guest"
     rabbitmq_host: str = "localhost"
@@ -28,18 +31,6 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "dev_jwt_secret_change_in_production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440
-
-    @property
-    def database_url(self) -> str:
-        return f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-
-    @property
-    def sync_database_url(self) -> str:
-        return f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-
-    @property
-    def rabbitmq_url(self) -> str:
-        return f"amqp://{self.rabbitmq_user}:{self.rabbitmq_password}@{self.rabbitmq_host}:{self.rabbitmq_port}/"
 
     model_config = SettingsConfigDict(env_file=".env")
 

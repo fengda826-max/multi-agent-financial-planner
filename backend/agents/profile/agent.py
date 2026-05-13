@@ -11,7 +11,7 @@ class UserProfileAgent:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            model="deepseek-chat",
+            model="deepseek-v4-pro",
             api_key=settings.deepseek_api_key,
             base_url="https://api.deepseek.com/v1",
             temperature=0.3
@@ -20,6 +20,8 @@ class UserProfileAgent:
     async def analyze(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """分析用户数据，生成画像"""
 
+        has_assets = user_data.get('investable_assets') is not None
+
         system_prompt = """你是一个专业的理财规划师助手。根据用户的财务数据和风险测评结果，分析用户的投资画像。
 
 你需要输出以下内容：
@@ -27,6 +29,8 @@ class UserProfileAgent:
 2. risk_capacity: 风险承受能力（low/medium/high）
 3. needs_followup: 是否需要追问用户更多信息（true/false）
 4. followup_questions: 如果需要追问，列出具体问题
+
+重要：如果用户已经提供了可投资资产信息，needs_followup 必须为 false。
 
 请用JSON格式输出。"""
 
@@ -50,6 +54,10 @@ class UserProfileAgent:
         import json
         try:
             result = json.loads(response.content)
+            # 如果已提供资产信息，强制不需要追问
+            if has_assets:
+                result["needs_followup"] = False
+                result["followup_questions"] = []
         except json.JSONDecodeError:
             result = self._default_analysis(user_data)
 

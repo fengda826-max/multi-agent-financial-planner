@@ -43,7 +43,7 @@ export const authAPI = {
 
 export const riskAssessmentAPI = {
   submit: (data: { age: number; income: number; expenses: number; risk_tolerance: string; investment_horizon: string }) =>
-    apiClient.post('/risk-assessment', data),
+    apiClient.post('/risk-assessment/', data),
 }
 
 export const orchestratorAPI = {

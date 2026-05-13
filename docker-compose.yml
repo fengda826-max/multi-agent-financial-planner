@@ -1,3 +1,5 @@
+name: financial-planner
+
 services:
   # 基础设施
   postgres:

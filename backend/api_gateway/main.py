@@ -42,7 +42,7 @@ async def health_check():
 
 
 # Orchestrator 代理路由
-@app.api_route("/orchestrator/{path:path}", methods=["GET", "POST"])
+@app.api_route("/api/orchestrator/{path:path}", methods=["GET", "POST"])
 async def proxy_to_orchestrator(request: Request, path: str):
     async with httpx.AsyncClient() as client:
         body = await request.body()
@@ -51,7 +51,7 @@ async def proxy_to_orchestrator(request: Request, path: str):
             url=f"{ORCHESTRATOR_URL}/{path}",
             content=body,
             headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
-            timeout=60.0
+            timeout=180.0
         )
         return JSONResponse(
             content=response.json(),
