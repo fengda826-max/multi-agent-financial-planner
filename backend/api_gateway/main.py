@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import httpx
 from shared.database import init_db
-from api_gateway.routers import auth, user
+from api_gateway.routers import auth, user, risk_assessment
 
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:8010")
 
@@ -33,6 +33,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(user.router, prefix="/api/users", tags=["用户"])
+app.include_router(risk_assessment.router, prefix="/api/risk-assessment", tags=["风险测评"])
 
 
 @app.get("/health")
