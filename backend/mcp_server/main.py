@@ -2,10 +2,11 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 import json
-from mcp_server.tools.base import DataSourceAdapter
+from mcp_server.tools.akshare_adapter import AKShareAdapter
 
 
 app = Server("financial-data-server")
+akshare_adapter = AKShareAdapter()
 
 
 @app.list_tools()
@@ -60,8 +61,30 @@ async def list_tools():
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict):
-    # 工具调用逻辑将在下一个任务实现
-    return [TextContent(type="text", text=f"Tool {name} called with {arguments}")]
+    try:
+        if name == "get_index_data":
+            result = await akshare_adapter.get_index_data(
+                symbol=arguments.get("symbol", "sh000300"),
+                period=arguments.get("period", "1y")
+            )
+        elif name == "get_fund_rating":
+            result = await akshare_adapter.get_fund_rating(
+                fund_id=arguments.get("fund_id", "")
+            )
+        elif name == "get_macro_indicator":
+            result = await akshare_adapter.get_macro_indicator(
+                indicator=arguments.get("indicator", "CPI")
+            )
+        elif name == "get_bond_yield":
+            result = await akshare_adapter.get_bond_yield(
+                curve_type=arguments.get("curve_type", "china")
+            )
+        else:
+            result = {"error": f"Unknown tool: {name}"}
+
+        return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+    except Exception as e:
+        return [TextContent(type="text", text=json.dumps({"error": str(e)}, ensure_ascii=False))]
 
 
 async def main():
