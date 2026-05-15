@@ -68,7 +68,7 @@ async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
                     "focus_areas": ["equity", "bond", "commodity"],
                     "time_horizon": "1y"
                 },
-                timeout=60.0
+                timeout=120.0
             )
 
             if response.status_code != 200:

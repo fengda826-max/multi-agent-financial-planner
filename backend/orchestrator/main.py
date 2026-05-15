@@ -308,14 +308,37 @@ async def chat_with_advisor(request: ChatRequest):
     """AI 对话 - 代理到 Coaching Agent，支持对话历史"""
     try:
         context_parts = []
+
+        # 市场数据上下文
         if request.market_analysis:
-            overview = request.market_analysis.get("market_overview", {})
-            context_parts.append(f"市场数据: {json.dumps(overview, ensure_ascii=False)}")
+            ma = request.market_analysis
+            if ma.get("market_overview"):
+                overview = ma["market_overview"]
+                lines = ["当前市场状况："]
+                for asset, info in overview.items():
+                    asset_name = {"equity": "权益", "bond": "债券", "commodity": "商品"}.get(asset, asset)
+                    lines.append(f"- {asset_name}: 预期收益{info.get('expected_return', 0)*100:.1f}%, 波动率{info.get('volatility', 0)*100:.1f}%, {info.get('recommendation', '')}")
+                context_parts.append("\n".join(lines))
+            if ma.get("risk_factors"):
+                context_parts.append(f"市场风险因素: {', '.join(ma['risk_factors'])}")
+            if ma.get("overall_recommendation"):
+                context_parts.append(f"整体建议: {ma['overall_recommendation']}")
+
+        # 策略上下文
         if request.strategy:
             buckets = request.strategy.get("four_buckets", {})
-            context_parts.append(f"配置方案: {json.dumps(buckets, ensure_ascii=False)}")
+            if buckets:
+                lines = ["用户资产配置："]
+                name_map = {"living_money": "活钱", "stable_money": "稳健", "growth_money": "长期", "protection_money": "保障"}
+                for key, name in name_map.items():
+                    b = buckets.get(key, {})
+                    if b:
+                        lines.append(f"- {name}: {b.get('allocation', 0)*100:.0f}%, 产品: {', '.join(b.get('products', [])[:3])}")
+                context_parts.append("\n".join(lines))
+            if request.strategy.get("stress_test"):
+                context_parts.append(f"压力测试: {json.dumps(request.strategy['stress_test'], ensure_ascii=False)}")
 
-        context = "\n".join(context_parts) if context_parts else "用户画像未知"
+        context = "\n\n".join(context_parts) if context_parts else "暂无市场数据和配置方案"
 
         async with httpx.AsyncClient() as client:
             payload = {

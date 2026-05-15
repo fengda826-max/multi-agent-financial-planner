@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List
 from agents.market.agent import MarketAnalysisAgent
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,89 +23,103 @@ class MarketAnalysisResponse(BaseModel):
     overall_recommendation: str
 
 
-def fetch_real_market_data() -> Dict[str, Any]:
-    """尝试从AKShare获取真实市场数据，失败则返回默认数据"""
-    try:
-        import akshare as ak
-        data = {}
+async def fetch_real_market_data() -> Dict[str, Any]:
+    """异步获取真实市场数据，单个数据源10秒超时"""
+    data = {}
 
-        # 沪深300指数
+    async def fetch_with_timeout(name: str, fn):
+        """在线程池中执行同步AKShare调用，10秒超时"""
         try:
-            df_300 = ak.stock_zh_index_daily(symbol="sh000300")
-            if not df_300.empty:
-                latest = df_300.iloc[-1]
-                prev = df_300.iloc[-2] if len(df_300) > 1 else latest
-                pe = float(latest.get('pe', 12.5)) if 'pe' in latest else 12.5
-                daily_change = (float(latest['close']) - float(prev['close'])) / float(prev['close'])
-                data["沪深300"] = {
-                    "latest_price": float(latest['close']),
-                    "pe_ratio": pe,
-                    "pb_ratio": 1.3,
-                    "daily_change": daily_change
-                }
-                logger.info(f"Fetched real 沪深300 data: {data['沪深300']['latest_price']}")
+            result = await asyncio.wait_for(
+                asyncio.to_thread(fn),
+                timeout=10.0
+            )
+            if result:
+                data[name] = result
+                logger.info(f"Fetched real {name}: {result}")
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout fetching {name}")
         except Exception as e:
-            logger.warning(f"Failed to fetch 沪深300: {e}")
+            logger.warning(f"Failed to fetch {name}: {type(e).__name__}: {e}")
 
-        # 创业板指
+    async def fetch_index_300():
         try:
-            df_cyb = ak.stock_zh_index_daily(symbol="sz399006")
-            if not df_cyb.empty:
-                latest = df_cyb.iloc[-1]
-                prev = df_cyb.iloc[-2] if len(df_cyb) > 1 else latest
-                pe = float(latest.get('pe', 35.0)) if 'pe' in latest else 35.0
-                daily_change = (float(latest['close']) - float(prev['close'])) / float(prev['close'])
-                data["创业板指"] = {
-                    "latest_price": float(latest['close']),
-                    "pe_ratio": pe,
-                    "pb_ratio": 3.8,
-                    "daily_change": daily_change
-                }
-                logger.info(f"Fetched real 创业板指 data: {data['创业板指']['latest_price']}")
-        except Exception as e:
-            logger.warning(f"Failed to fetch 创业板指: {e}")
+            import akshare as ak
+            df = ak.stock_zh_index_daily(symbol="sh000300")
+            if df is None or df.empty:
+                return None
+            latest = df.iloc[-1]
+            prev = df.iloc[-2] if len(df) > 1 else latest
+            daily_change = (float(latest['close']) - float(prev['close'])) / float(prev['close']) if float(prev['close']) != 0 else 0
+            return {
+                "latest_price": float(latest['close']),
+                "pe_ratio": 12.5,
+                "pb_ratio": 1.3,
+                "daily_change": daily_change
+            }
+        except Exception:
+            return None
 
-        # 国债收益率
+    async def fetch_index_cyb():
         try:
-            df_bond = ak.bond_zh_us_rate()
-            if not df_bond.empty:
-                # 列名: '中国国债收益率10年', 取最新非NaN值
-                col_10y = '中国国债收益率10年'
-                if col_10y in df_bond.columns:
-                    latest_bond = df_bond[col_10y].dropna()
-                    if not latest_bond.empty:
-                        yield_val = float(latest_bond.iloc[-1])
-                        data["10年国债"] = {"yield": yield_val}
-                        logger.info(f"Fetched real 10Y bond yield: {yield_val}%")
-        except Exception as e:
-            logger.warning(f"Failed to fetch bond yield: {e}")
+            import akshare as ak
+            df = ak.stock_zh_index_daily(symbol="sz399006")
+            if df is None or df.empty:
+                return None
+            latest = df.iloc[-1]
+            prev = df.iloc[-2] if len(df) > 1 else latest
+            daily_change = (float(latest['close']) - float(prev['close'])) / float(prev['close']) if float(prev['close']) != 0 else 0
+            return {
+                "latest_price": float(latest['close']),
+                "pe_ratio": 35.0,
+                "pb_ratio": 3.8,
+                "daily_change": daily_change
+            }
+        except Exception:
+            return None
 
-        # CPI
+    async def fetch_bond_yield():
         try:
-            df_cpi = ak.macro_china_cpi_monthly()
-            if not df_cpi.empty:
-                # 列名: '今值'
-                col_val = '今值'
-                if col_val in df_cpi.columns:
-                    latest_cpi = float(df_cpi[col_val].dropna().iloc[-1])
-                    data["CPI"] = {"latest": latest_cpi}
-                    logger.info(f"Fetched real CPI: {latest_cpi}%")
-        except Exception as e:
-            logger.warning(f"Failed to fetch CPI: {e}")
+            import akshare as ak
+            df = ak.bond_zh_us_rate()
+            if df is None or df.empty:
+                return None
+            col = '中国国债收益率10年'
+            if col in df.columns:
+                series = df[col].dropna()
+                if not series.empty:
+                    return {"yield": float(series.iloc[-1])}
+            return None
+        except Exception:
+            return None
 
-        if data:
-            logger.info(f"Using real market data: {list(data.keys())}")
-            return data
-    except ImportError:
-        logger.info("AKShare not installed, using default market data")
-    except Exception as e:
-        logger.warning(f"Failed to fetch real market data: {e}")
+    async def fetch_cpi():
+        try:
+            import akshare as ak
+            df = ak.macro_china_cpi_monthly()
+            if df is None or df.empty:
+                return None
+            col = '今值'
+            if col in df.columns:
+                series = df[col].dropna()
+                if not series.empty:
+                    return {"latest": float(series.iloc[-1])}
+            return None
+        except Exception:
+            return None
 
-    return {}
+    # 并发获取所有数据源
+    await asyncio.gather(
+        fetch_with_timeout("沪深300", fetch_index_300),
+        fetch_with_timeout("创业板指", fetch_index_cyb),
+        fetch_with_timeout("10年国债", fetch_bond_yield),
+        fetch_with_timeout("CPI", fetch_cpi),
+    )
+
+    return data
 
 
 def get_default_market_data() -> Dict[str, Any]:
-    """获取默认市场数据（硬编码回退）"""
     return {
         "沪深300": {"latest_price": 3800, "pe_ratio": 12.5, "pb_ratio": 1.3},
         "创业板指": {"latest_price": 2200, "pe_ratio": 35.2, "pb_ratio": 3.8},
@@ -116,8 +131,8 @@ def get_default_market_data() -> Dict[str, Any]:
 @app.post("/analyze", response_model=MarketAnalysisResponse)
 async def analyze_market(request: MarketAnalysisRequest):
     try:
-        # 优先使用真实数据
-        market_data = fetch_real_market_data()
+        # 异步获取真实数据（每个源10秒超时，总用时≤10秒）
+        market_data = await fetch_real_market_data()
         if not market_data:
             market_data = get_default_market_data()
 
