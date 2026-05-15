@@ -1,4 +1,5 @@
 import os
+import json
 import uuid as uuid_lib
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
@@ -286,25 +287,31 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat_with_advisor(request: ChatRequest):
-    """AI 对话 - 代理到 Coaching Agent"""
+    """AI 对话 - 代理到 Coaching Agent，支持对话历史"""
     try:
         context_parts = []
         if request.market_analysis:
-            context_parts.append(f"市场分析: {request.market_analysis}")
+            overview = request.market_analysis.get("market_overview", {})
+            context_parts.append(f"市场数据: {json.dumps(overview, ensure_ascii=False)}")
         if request.strategy:
-            context_parts.append(f"配置方案: {request.strategy}")
+            buckets = request.strategy.get("four_buckets", {})
+            context_parts.append(f"配置方案: {json.dumps(buckets, ensure_ascii=False)}")
 
         context = "\n".join(context_parts) if context_parts else "用户画像未知"
 
         async with httpx.AsyncClient() as client:
+            payload = {
+                "user_id": request.user_id,
+                "context": context,
+                "strategy": request.strategy,
+                "user_message": request.user_message,
+            }
+            if request.conversation_history:
+                payload["conversation_history"] = request.conversation_history
+
             response = await client.post(
                 "http://agent-coaching:8004/interact",
-                json={
-                    "user_id": request.user_id,
-                    "context": context,
-                    "strategy": request.strategy,
-                    "user_message": request.user_message
-                },
+                json=payload,
                 timeout=60.0
             )
             result = response.json()

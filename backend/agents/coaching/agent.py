@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from shared.config import get_settings
@@ -17,7 +17,13 @@ class CoachingAgent:
             temperature=0.7
         )
 
-    async def generate_response(self, context: str, user_message: str = None, event_type: str = None) -> Dict[str, Any]:
+    async def generate_response(
+        self,
+        context: str,
+        user_message: str = None,
+        event_type: str = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None
+    ) -> Dict[str, Any]:
         """生成督导响应"""
 
         system_prompt = """你是一个温暖、专业的理财督导助手。你的职责是：
@@ -31,6 +37,7 @@ class CoachingAgent:
 - 用简单易懂的语言解释专业概念
 - 强调长期投资的重要性
 - 不做具体的产品推荐
+- 记住之前的对话内容，保持上下文连贯
 
 输出格式（JSON）：
 {
@@ -39,16 +46,26 @@ class CoachingAgent:
     "replan_trigger": "如果需要重规划，说明原因"
 }"""
 
+        # Build conversation history section
+        history_text = ""
+        if conversation_history and len(conversation_history) > 0:
+            history_lines = []
+            for msg in conversation_history[-6:]:  # Last 6 messages
+                role = "用户" if msg.get("role") == "user" else "助手"
+                history_lines.append(f"{role}: {msg.get('content', '')}")
+            if history_lines:
+                history_text = "\n对话历史：\n" + "\n".join(history_lines) + "\n"
+
         if event_type:
             user_prompt = f"""事件类型：{event_type}
 用户当前状态：{context}
-
-请生成督导响应。"""
+请针对此事件生成督导响应。"""
         else:
-            user_prompt = f"""用户消息：{user_message}
-用户当前状态：{context}
+            user_prompt = f"""{history_text}用户当前状态：{context}
 
-请生成督导响应。"""
+用户最新消息：{user_message or '你好'}
+
+请基于对话历史和用户当前状态，生成温暖、有帮助的督导响应。"""
 
         messages = [
             SystemMessage(content=system_prompt),
@@ -59,8 +76,14 @@ class CoachingAgent:
 
         import json
         try:
-            result = json.loads(response.content)
-        except json.JSONDecodeError:
+            content = response.content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+            content = content.strip()
+            result = json.loads(content)
+        except (json.JSONDecodeError, ValueError):
             result = {
                 "message": response.content,
                 "action": "none",

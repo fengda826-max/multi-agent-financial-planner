@@ -55,6 +55,16 @@ export const riskAssessmentAPI = {
   submit: (data: { age: number; income: number; expenses: number; risk_tolerance: string; investment_horizon: string }) =>
     apiClient.post('/risk-assessment/', data),
   getMyProfile: () => apiClient.get('/risk-assessment/my-profile') as Promise<RiskProfileResponse>,
+  getHistory: () => apiClient.get('/risk-assessment/history') as Promise<{
+    total: number
+    assessments: Array<{
+      id: string
+      score: number
+      risk_level: string
+      assessed_at: string
+      answers: Record<string, any>
+    }>
+  }>,
 }
 
 export const orchestratorAPI = {
@@ -64,4 +74,11 @@ export const orchestratorAPI = {
     apiClient.get(`/orchestrator/status/${userId}`) as Promise<OrchestratorStatusResponse>,
   replan: (data: { user_id: string; trigger: string; trigger_detail: string; replan_from: string }) =>
     apiClient.post('/orchestrator/replan', data, { timeout: 180000 }),
+  chat: (data: {
+    user_id: string
+    user_message: string
+    strategy?: any
+    market_analysis?: any
+    conversation_history?: Array<{ role: string; content: string }>
+  }) => apiClient.post('/orchestrator/chat', data) as Promise<{ message: string; action: string; replan_trigger?: string }>,
 }

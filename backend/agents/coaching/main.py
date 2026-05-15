@@ -4,7 +4,7 @@ import json
 import aio_pika
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from uuid import UUID
 from agents.coaching.agent import CoachingAgent
 
@@ -15,10 +15,11 @@ RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 
 
 class CoachingRequest(BaseModel):
-    user_id: UUID
+    user_id: str
     context: str
     strategy: Optional[Dict[str, Any]] = None
     user_message: Optional[str] = None
+    conversation_history: Optional[List[Dict[str, str]]] = None
 
 
 class CoachingResponse(BaseModel):
@@ -32,7 +33,8 @@ async def interact(request: CoachingRequest):
     try:
         result = await agent.generate_response(
             context=request.context,
-            user_message=request.user_message
+            user_message=request.user_message,
+            conversation_history=request.conversation_history
         )
         return CoachingResponse(**result)
     except Exception as e:

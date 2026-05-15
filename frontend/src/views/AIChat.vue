@@ -126,34 +126,22 @@ async function sendMessage(text?: string) {
     if (!userId) return
 
     // 构建上下文传给 coaching agent
-    const response = await fetch('/api/orchestrator/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: userId,
-        user_message: msg,
-        strategy: strategyData.value,
-        market_analysis: marketData.value,
-        conversation_history: messages.value.slice(-6).map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      })
+    const data = await orchestratorAPI.chat({
+      user_id: userId,
+      user_message: msg,
+      strategy: strategyData.value,
+      market_analysis: marketData.value,
+      conversation_history: messages.value.slice(-6).map(m => ({
+        role: m.role,
+        content: m.content
+      }))
     })
 
-    if (response.ok) {
-      const data = await response.json()
-      messages.value.push({
-        role: 'assistant',
-        content: data.message || '抱歉，我暂时无法回答这个问题。',
-        action: data.action
-      })
-    } else {
-      messages.value.push({
-        role: 'assistant',
-        content: '抱歉，服务暂时不可用，请稍后再试。'
-      })
-    }
+    messages.value.push({
+      role: 'assistant',
+      content: data.message || '抱歉，我暂时无法回答这个问题。',
+      action: data.action
+    })
   } catch {
     messages.value.push({
       role: 'assistant',

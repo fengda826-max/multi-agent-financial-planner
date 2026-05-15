@@ -46,14 +46,33 @@ async def health_check():
 async def proxy_to_orchestrator(request: Request, path: str):
     async with httpx.AsyncClient() as client:
         body = await request.body()
-        response = await client.request(
-            method=request.method,
-            url=f"{ORCHESTRATOR_URL}/{path}",
-            content=body,
-            headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
-            timeout=180.0
-        )
-        return JSONResponse(
-            content=response.json(),
-            status_code=response.status_code
-        )
+        # 只转发必要的headers，避免干扰
+        forward_headers = {}
+        if "authorization" in request.headers:
+            forward_headers["authorization"] = request.headers["authorization"]
+        forward_headers["content-type"] = request.headers.get("content-type", "application/json")
+
+        if request.method == "GET":
+            response = await client.get(
+                f"{ORCHESTRATOR_URL}/{path}",
+                headers=forward_headers,
+                timeout=180.0
+            )
+        else:
+            response = await client.post(
+                f"{ORCHESTRATOR_URL}/{path}",
+                content=body,
+                headers=forward_headers,
+                timeout=180.0
+            )
+
+        try:
+            return JSONResponse(
+                content=response.json(),
+                status_code=response.status_code
+            )
+        except Exception:
+            return JSONResponse(
+                content={"detail": str(response.text)},
+                status_code=response.status_code
+            )

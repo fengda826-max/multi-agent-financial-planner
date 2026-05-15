@@ -48,6 +48,37 @@ async def get_my_profile(
     }
 
 
+@router.get("/history")
+async def get_assessment_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取用户的测评历史列表"""
+    user_id = UUID(current_user["user_id"])
+
+    result = await db.execute(
+        select(RiskAssessment)
+        .where(RiskAssessment.user_id == user_id)
+        .order_by(RiskAssessment.assessed_at.desc())
+        .limit(10)
+    )
+    assessments = result.scalars().all()
+
+    return {
+        "total": len(assessments),
+        "assessments": [
+            {
+                "id": str(a.id),
+                "score": a.score,
+                "risk_level": a.risk_level,
+                "assessed_at": a.assessed_at.isoformat(),
+                "answers": a.answers
+            }
+            for a in assessments
+        ]
+    }
+
+
 def calculate_risk_level(assessment: RiskAssessmentInput) -> tuple[int, str]:
     """计算风险等级"""
     score = 0
