@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import httpx
 from orchestrator.graph import graph
 from orchestrator.state import FinancialPlanningState
 from shared.database import async_session
@@ -273,6 +274,43 @@ async def get_status(user_id: str):
         strategy=state.get("strategy"),
         coaching_history=state.get("coaching_history")
     )
+
+
+class ChatRequest(BaseModel):
+    user_id: str
+    user_message: str
+    strategy: Optional[Dict[str, Any]] = None
+    market_analysis: Optional[Dict[str, Any]] = None
+    conversation_history: Optional[List[Dict[str, str]]] = None
+
+
+@app.post("/chat")
+async def chat_with_advisor(request: ChatRequest):
+    """AI 对话 - 代理到 Coaching Agent"""
+    try:
+        context_parts = []
+        if request.market_analysis:
+            context_parts.append(f"市场分析: {request.market_analysis}")
+        if request.strategy:
+            context_parts.append(f"配置方案: {request.strategy}")
+
+        context = "\n".join(context_parts) if context_parts else "用户画像未知"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://agent-coaching:8004/interact",
+                json={
+                    "user_id": request.user_id,
+                    "context": context,
+                    "strategy": request.strategy,
+                    "user_message": request.user_message
+                },
+                timeout=60.0
+            )
+            result = response.json()
+            return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")

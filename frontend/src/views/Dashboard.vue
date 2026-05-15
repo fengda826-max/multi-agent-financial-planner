@@ -125,13 +125,13 @@ const healthScore = computed(() => {
 })
 
 const riskLabel = computed(() => {
-  const map: Record<string, string> = { conservative: '保守型', moderate: '稳健型', aggressive: '进取型' }
-  return map[profile.value.risk_capacity] || '未知'
+  const map: Record<string, string> = { low: '保守型', medium: '稳健型', high: '进取型', conservative: '保守型', moderate: '稳健型', aggressive: '进取型' }
+  return map[profile.value.risk_capacity] || '未测评'
 })
 
 const riskClass = computed(() => {
-  const map: Record<string, string> = { low: 'risk-low', medium: 'risk-medium', high: 'risk-high' }
-  return map[profile.value.risk_capacity] || ''
+  const mapping: Record<string, string> = { low: 'risk-low', conservative: 'risk-low', medium: 'risk-medium', moderate: 'risk-medium', high: 'risk-high', aggressive: 'risk-high' }
+  return mapping[profile.value.risk_capacity] || ''
 })
 
 const lastUpdateTime = computed(() => {
