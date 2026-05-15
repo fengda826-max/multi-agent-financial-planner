@@ -48,8 +48,8 @@
       <div v-if="currentStep === 2" class="step-content">
         <el-result icon="success" title="测评完成">
           <template #extra>
-            <el-button type="primary" @click="generateStrategy">
-              生成配置方案
+            <el-button type="primary" :loading="generating" @click="generateStrategy">
+              {{ generating ? '正在生成方案（约1分钟）...' : '生成配置方案' }}
             </el-button>
           </template>
         </el-result>
@@ -66,6 +66,7 @@ import { riskAssessmentAPI, orchestratorAPI } from '../api/client'
 
 const router = useRouter()
 const currentStep = ref(0)
+const generating = ref(false)
 const form = ref({
   age: 30,
   income: 20000,
@@ -92,7 +93,8 @@ const generateStrategy = async () => {
       return
     }
 
-    const result = await orchestratorAPI.start({
+    generating.value = true
+    await orchestratorAPI.start({
       user_id: userId,
       risk_assessment: form.value
     })
@@ -103,6 +105,8 @@ const generateStrategy = async () => {
     })
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '生成方案失败')
+  } finally {
+    generating.value = false
   }
 }
 </script>

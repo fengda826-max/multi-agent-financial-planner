@@ -10,6 +10,44 @@ from api_gateway.middleware.auth import get_current_user
 router = APIRouter()
 
 
+@router.get("/my-profile")
+async def get_my_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取用户的测评档案和最新评估结果"""
+    user_id = UUID(current_user["user_id"])
+
+    profile_result = await db.execute(
+        select(UserProfile).where(UserProfile.user_id == user_id)
+    )
+    profile = profile_result.scalar_one_or_none()
+
+    assessment_result = await db.execute(
+        select(RiskAssessment)
+        .where(RiskAssessment.user_id == user_id)
+        .order_by(RiskAssessment.assessed_at.desc())
+        .limit(1)
+    )
+    latest_assessment = assessment_result.scalar_one_or_none()
+
+    return {
+        "has_profile": profile is not None,
+        "has_assessment": latest_assessment is not None,
+        "profile": {
+            "lifecycle_stage": profile.lifecycle_stage if profile else None,
+            "risk_capacity": profile.risk_capacity if profile else None,
+            "investable_assets": float(profile.investable_assets) if profile and profile.investable_assets else None,
+            "monthly_surplus": float(profile.monthly_surplus) if profile and profile.monthly_surplus else None,
+        },
+        "latest_assessment": {
+            "score": latest_assessment.score,
+            "risk_level": latest_assessment.risk_level,
+            "assessed_at": latest_assessment.assessed_at.isoformat() if latest_assessment else None,
+        } if latest_assessment else None,
+    }
+
+
 def calculate_risk_level(assessment: RiskAssessmentInput) -> tuple[int, str]:
     """计算风险等级"""
     score = 0
