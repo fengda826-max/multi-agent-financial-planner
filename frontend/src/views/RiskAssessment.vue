@@ -49,7 +49,7 @@
         <el-result icon="success" title="测评完成">
           <template #extra>
             <el-button type="primary" :loading="generating" @click="generateStrategy">
-              {{ generating ? '正在生成方案（约1分钟）...' : '生成配置方案' }}
+              {{ generating ? generatingProgress : '生成配置方案' }}
             </el-button>
           </template>
         </el-result>
@@ -67,6 +67,7 @@ import { riskAssessmentAPI, orchestratorAPI } from '../api/client'
 const router = useRouter()
 const currentStep = ref(0)
 const generating = ref(false)
+const generatingProgress = ref('正在启动分析...')
 const form = ref({
   age: 30,
   income: 20000,
@@ -94,10 +95,41 @@ const generateStrategy = async () => {
     }
 
     generating.value = true
+
+    // 启动后台生成
     await orchestratorAPI.start({
       user_id: userId,
       risk_assessment: form.value
     })
+
+    // 轮询进度
+    const progressLabels: Record<string, string> = {
+      started: '正在启动分析...',
+      analyzing_profile: '正在分析您的财务画像...',
+      analyzing_market: '正在分析市场行情...',
+      generating_strategy: '正在生成配置方案...',
+      generating_coaching: '正在生成督导建议...',
+      coaching_complete: '即将完成...'
+    }
+    let lastStep = ''
+    for (let i = 0; i < 90; i++) {
+      await new Promise(r => setTimeout(r, 1500))
+      try {
+        const status = await orchestratorAPI.getStatus(userId)
+        const step = status.current_step
+        if (step !== lastStep) {
+          const label = progressLabels[step] || step
+          lastStep = step
+          // Update the button text with current progress
+          generatingProgress.value = label
+        }
+        if (step === 'coaching_complete' && status.strategy?.four_buckets) {
+          break
+        }
+      } catch {
+        // 状态尚未就绪，继续轮询
+      }
+    }
 
     router.push({
       path: '/strategy-result',

@@ -15,3 +15,7 @@ class FinancialPlanningState(TypedDict):
     needs_followup: bool
     replan_trigger: Optional[str]
     error: Optional[str]
+
+
+# 全局内存状态存储，供 graph 节点和 main 端点共享
+user_states: Dict[str, FinancialPlanningState] = {}

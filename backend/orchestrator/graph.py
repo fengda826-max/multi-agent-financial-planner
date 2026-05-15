@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 from typing import Dict, Any
 import httpx
-from orchestrator.state import FinancialPlanningState
+from orchestrator.state import FinancialPlanningState, user_states
 
 AGENT_URLS = {
     "profile": "http://agent-profile:8001",
@@ -11,8 +11,17 @@ AGENT_URLS = {
 }
 
 
+def _update_progress(user_id: str, step: str, **kwargs):
+    """更新内存中的进度状态（供 /status 轮询）"""
+    if user_id in user_states:
+        user_states[user_id]["current_step"] = step
+        user_states[user_id].update(kwargs)
+
+
 async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用用户画像Agent"""
+    user_id = state["user_id"]
+    _update_progress(user_id, "analyzing_profile")
     try:
         risk_assessment = dict(state["risk_assessment"])
         # 从收入/支出推算可投资资产，确保完整流程可执行
@@ -49,6 +58,7 @@ async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
 
 async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用市场研判Agent"""
+    _update_progress(state["user_id"], "analyzing_market")
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -84,6 +94,7 @@ async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
 
 async def call_strategy_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用策略生成Agent"""
+    _update_progress(state["user_id"], "generating_strategy")
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -119,6 +130,7 @@ async def call_strategy_agent(state: FinancialPlanningState) -> Dict[str, Any]:
 
 async def call_coaching_agent(state: FinancialPlanningState) -> Dict[str, Any]:
     """调用陪伴督导Agent"""
+    _update_progress(state["user_id"], "generating_coaching")
     context = f"用户画像: {state['user_profile']}\n配置方案: {state['strategy']}"
 
     async with httpx.AsyncClient() as client:

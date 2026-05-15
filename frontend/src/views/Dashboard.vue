@@ -86,8 +86,8 @@
               <el-button size="large" @click="$router.push('/risk-assessment')">
                 🔄 重新测评
               </el-button>
-              <el-button size="large" disabled>
-                💬 咨询AI助手（即将上线）
+              <el-button size="large" @click="$router.push('/ai-chat')">
+                💬 咨询AI助手
               </el-button>
             </div>
           </el-card>

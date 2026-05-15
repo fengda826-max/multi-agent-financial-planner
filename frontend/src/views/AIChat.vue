@@ -6,7 +6,11 @@
         <div v-if="messages.length === 0" class="chat-welcome">
           <div class="welcome-icon">🤖</div>
           <h2>{{ welcomeMessage }}</h2>
-          <p>您可以向我咨询任何理财相关的问题</p>
+          <p v-if="hasStrategy">您可以向我咨询任何理财相关的问题</p>
+          <div v-else class="no-strategy-hint">
+            <p>您还没有生成配置方案，建议先完成测评让我更好地为您分析</p>
+            <el-button type="primary" @click="$router.push('/risk-assessment')">开始测评</el-button>
+          </div>
         </div>
 
         <div v-for="(msg, index) in messages" :key="index" class="message-row" :class="msg.role">
@@ -77,6 +81,7 @@ const chatMessagesRef = ref<HTMLElement | null>(null)
 const userName = ref('')
 const strategyData = ref<any>(null)
 const marketData = ref<any>(null)
+const hasStrategy = ref(false)
 
 const welcomeMessage = ref('您好！我是您的专属理财顾问，可以帮您理解方案、分析市场、解答疑问。')
 
@@ -108,6 +113,7 @@ async function loadContext() {
     if (statusData) {
       strategyData.value = statusData.strategy
       marketData.value = statusData.market_analysis
+      hasStrategy.value = !!statusData.strategy
     }
   } catch { /* ignore */ }
 }

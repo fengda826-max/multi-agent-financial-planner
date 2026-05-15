@@ -1,6 +1,7 @@
 import os
 import json
 import uuid as uuid_lib
+import asyncio
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
@@ -8,14 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import httpx
 from orchestrator.graph import graph
-from orchestrator.state import FinancialPlanningState
+from orchestrator.state import FinancialPlanningState, user_states
 from shared.database import async_session
 from shared.models.portfolio import Portfolio, Strategy, MarketAnalysis
 from shared.models.profile import UserProfile
 
 app = FastAPI(title="Orchestrator")
-
-user_states: Dict[str, FinancialPlanningState] = {}
 
 
 class StartRequest(BaseModel):
@@ -62,12 +61,22 @@ async def save_strategy_to_db(user_id: str, state: FinancialPlanningState):
             strategy_data = state.get("strategy", {})
             four_buckets = strategy_data.get("four_buckets", {})
 
-            # 获取可投资资产
+            # 获取并更新用户画像
             result = await db.execute(
                 select(UserProfile).where(UserProfile.user_id == uuid_lib.UUID(user_id))
             )
             profile = result.scalar_one_or_none()
             total_assets = float(profile.investable_assets) if profile and profile.investable_assets else 0
+
+            # 同步Profile Agent返回的lifecycle_stage到DB
+            user_profile_data = state.get("user_profile", {})
+            if profile and user_profile_data.get("lifecycle_stage"):
+                profile.lifecycle_stage = user_profile_data["lifecycle_stage"]
+            elif profile and not profile.lifecycle_stage:
+                # Fallback: 根据年龄推断
+                risk_assessment = state.get("risk_assessment", {})
+                age = risk_assessment.get("age", 30)
+                profile.lifecycle_stage = "accumulation" if age < 35 else ("consolidation" if age < 50 else "distribution")
 
             # 创建Portfolio
             portfolio = Portfolio(
@@ -87,6 +96,7 @@ async def save_strategy_to_db(user_id: str, state: FinancialPlanningState):
                 stress_test_results=strategy_data.get("stress_test", {})
             )
             db.add(strategy_record)
+            await db.flush()  # 先flush让strategy获得ID
             portfolio.strategy_id = strategy_record.id
 
             await db.commit()
@@ -161,7 +171,7 @@ async def load_strategy_from_db(user_id: str) -> Optional[Dict[str, Any]]:
 
 @app.post("/start", response_model=OrchestratorResponse)
 async def start_planning(request: StartRequest):
-    """启动理财规划流程"""
+    """启动理财规划流程（异步后台执行，前端轮询 /status 获取进度）"""
     user_id = str(request.user_id)
 
     initial_state: FinancialPlanningState = {
@@ -177,23 +187,31 @@ async def start_planning(request: StartRequest):
         "error": None
     }
 
-    try:
-        result = await graph.ainvoke(initial_state)
-        user_states[user_id] = result
+    # 先存入内存，让 /status 可轮询到中间状态
+    user_states[user_id] = initial_state
 
-        # P0-5: 持久化到数据库
-        await save_strategy_to_db(user_id, result)
+    # 后台执行完整流程
+    async def run_graph():
+        try:
+            result = await graph.ainvoke(initial_state)
+            # 即时更新内存中的中间状态
+            user_states[user_id] = result
+            # 持久化到数据库
+            await save_strategy_to_db(user_id, result)
+        except Exception as e:
+            user_states[user_id]["error"] = str(e)
+            print(f"Graph execution error for {user_id}: {e}")
 
-        return OrchestratorResponse(
-            user_id=user_id,
-            current_step=result.get("current_step", "unknown"),
-            user_profile=result.get("user_profile"),
-            market_analysis=result.get("market_analysis"),
-            strategy=result.get("strategy"),
-            coaching_history=result.get("coaching_history")
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    asyncio.create_task(run_graph())
+
+    return OrchestratorResponse(
+        user_id=user_id,
+        current_step="started",
+        user_profile={},
+        market_analysis={},
+        strategy={},
+        coaching_history=[]
+    )
 
 
 @app.post("/replan", response_model=OrchestratorResponse)
