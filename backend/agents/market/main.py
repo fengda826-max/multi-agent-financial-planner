@@ -68,11 +68,14 @@ def fetch_real_market_data() -> Dict[str, Any]:
         try:
             df_bond = ak.bond_zh_us_rate()
             if not df_bond.empty:
-                cn_10y_row = df_bond[df_bond['曲线名称'] == '中国国债收益率10年']
-                if not cn_10y_row.empty:
-                    yield_val = float(cn_10y_row.iloc[-1]['收益率'])
-                    data["10年国债"] = {"yield": yield_val}
-                    logger.info(f"Fetched real 10Y bond yield: {yield_val}%")
+                # 列名: '中国国债收益率10年', 取最新非NaN值
+                col_10y = '中国国债收益率10年'
+                if col_10y in df_bond.columns:
+                    latest_bond = df_bond[col_10y].dropna()
+                    if not latest_bond.empty:
+                        yield_val = float(latest_bond.iloc[-1])
+                        data["10年国债"] = {"yield": yield_val}
+                        logger.info(f"Fetched real 10Y bond yield: {yield_val}%")
         except Exception as e:
             logger.warning(f"Failed to fetch bond yield: {e}")
 
@@ -80,9 +83,12 @@ def fetch_real_market_data() -> Dict[str, Any]:
         try:
             df_cpi = ak.macro_china_cpi_monthly()
             if not df_cpi.empty:
-                latest_cpi = float(df_cpi.iloc[-1]['cpi'])
-                data["CPI"] = {"latest": latest_cpi}
-                logger.info(f"Fetched real CPI: {latest_cpi}%")
+                # 列名: '今值'
+                col_val = '今值'
+                if col_val in df_cpi.columns:
+                    latest_cpi = float(df_cpi[col_val].dropna().iloc[-1])
+                    data["CPI"] = {"latest": latest_cpi}
+                    logger.info(f"Fetched real CPI: {latest_cpi}%")
         except Exception as e:
             logger.warning(f"Failed to fetch CPI: {e}")
 
