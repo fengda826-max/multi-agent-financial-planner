@@ -43,7 +43,8 @@
             <div class="bucket-percent">{{ (bucket.allocation * 100).toFixed(0) }}%</div>
             <div class="bucket-amount">约 ¥{{ formatAmount(bucket.allocation, investableAssets) }}</div>
             <div class="product-list">
-              <el-tag v-for="p in bucket.products" :key="p" size="small" class="product-tag" effect="plain">
+              <div class="products-label">示例产品</div>
+            <el-tag v-for="p in bucket.products" :key="p" size="small" class="product-tag" effect="plain">
                 {{ p }}
               </el-tag>
             </div>
@@ -91,6 +92,11 @@
         </el-col>
       </el-row>
     </template>
+
+    <DisclaimerBar
+      v-if="strategy"
+      message="本方案由DeepSeek AI生成，产品列表为示例，不代表购买推荐。投资有风险，决策需谨慎。"
+    />
   </div>
 </template>
 
@@ -99,6 +105,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import { orchestratorAPI, riskAssessmentAPI } from '../api/client'
+import DisclaimerBar from '../components/DisclaimerBar.vue'
 
 const strategy = ref<any>(null)
 const investableAssets = ref(0)
@@ -411,5 +418,11 @@ onMounted(async () => {
   color: #92400e;
   font-size: 14px;
   line-height: 1.6;
+}
+
+.products-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 6px;
 }
 </style>

@@ -23,7 +23,7 @@
         <div class="health-score">
           <div class="score-circle">
             <span class="score-num">{{ healthScore }}</span>
-            <span class="score-label">理财健康分</span>
+            <span class="score-label">理财健康分 <AILabel label="AI评估" /></span>
           </div>
         </div>
       </div>
@@ -34,7 +34,7 @@
           <el-card class="metric-card" shadow="hover">
             <div class="metric-label">总资产</div>
             <div class="metric-value">¥{{ formatMoney(profile.investable_assets) }}</div>
-            <div class="metric-desc">可投资资产</div>
+            <div class="metric-desc">估算可投资资产</div>
           </el-card>
         </el-col>
         <el-col :span="6">
@@ -94,6 +94,11 @@
         </el-col>
       </el-row>
     </template>
+
+    <DisclaimerBar
+      v-if="hasPlan"
+      message="本页面数据基于AI分析和用户自报信息生成。资产金额为估算值。投资有风险，内容仅供参考。"
+    />
   </div>
 </template>
 
@@ -102,6 +107,8 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { userAPI, riskAssessmentAPI, orchestratorAPI } from '../api/client'
+import AILabel from '../components/AILabel.vue'
+import DisclaimerBar from '../components/DisclaimerBar.vue'
 
 const router = useRouter()
 

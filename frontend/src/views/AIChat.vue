@@ -7,6 +7,7 @@
           <div class="welcome-icon">🤖</div>
           <h2>{{ welcomeMessage }}</h2>
           <p v-if="hasStrategy">您可以向我咨询任何理财相关的问题</p>
+          <p class="disclaimer-hint">* AI回答基于您的数据和市场信息生成，仅供参考，不构成投资建议</p>
           <div v-else class="no-strategy-hint">
             <p>您还没有生成配置方案，建议先完成测评让我更好地为您分析</p>
             <el-button type="primary" @click="$router.push('/risk-assessment')">开始测评</el-button>
@@ -201,6 +202,16 @@ onMounted(() => {
 .welcome-icon { font-size: 56px; margin-bottom: 16px; }
 .chat-welcome h2 { color: #1e293b; margin-bottom: 8px; font-size: 20px; }
 .chat-welcome p { color: #94a3b8; font-size: 15px; }
+
+.disclaimer-hint {
+  color: #b45309 !important;
+  font-size: 12px !important;
+  margin-top: 8px;
+  background: #fffbeb;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-block;
+}
 
 .message-row {
   display: flex;

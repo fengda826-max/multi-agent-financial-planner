@@ -31,7 +31,7 @@
     <el-card v-if="profileData" class="section-card profile-card">
       <template #header>
         <div class="section-header">
-          <span>🧑 用户画像分析</span>
+          <span>🧑 用户画像分析 <AILabel label="AI分析" tooltip="此画像由DeepSeek AI基于您的测评数据生成，仅供参考" /></span>
           <el-tag :type="riskTagType">{{ profileData.risk_capacity_label || profileData.risk_capacity }}</el-tag>
         </div>
       </template>
@@ -80,7 +80,7 @@
     <!-- 2. 市场研判（market 完成后展示） -->
     <el-card v-if="marketData" class="section-card market-card">
       <template #header>
-        <span>📈 市场研判</span>
+        <span>📈 市场研判 <AILabel label="AI分析" tooltip="预期收益和波动率为AI基于当前市场数据推断，非量化模型输出" /></span>
       </template>
       <el-row :gutter="16">
         <el-col :span="8" v-for="(info, asset) in marketData.market_overview" :key="asset">
@@ -100,6 +100,9 @@
       </div>
       <div v-if="marketData.overall_recommendation" class="overall-rec">
         📝 {{ marketData.overall_recommendation }}
+      </div>
+      <div class="data-source-note">
+        市场原始数据来自 AKShare 公开金融数据接口（沪深300、创业板指、国债收益率、CPI），AI 据此生成研判。数据可能存在延迟，仅供参考。
       </div>
     </el-card>
 
@@ -123,6 +126,7 @@
                 <div class="allocation">{{ (bucket.allocation * 100).toFixed(0) }}%</div>
                 <div class="bucket-amount">约 ¥{{ formatAmount(bucket.allocation, investableAssets) }}</div>
                 <div class="products">
+                  <span class="products-label">示例产品：</span>
                   <el-tag v-for="p in bucket.products" :key="p" size="small" class="product-tag">{{ p }}</el-tag>
                 </div>
                 <el-collapse>
@@ -165,7 +169,7 @@
 
     <!-- 4. 督导建议（coaching 完成后展示） -->
     <el-card v-if="coachingMessage" class="coaching-card">
-      <template #header><span>💡 督导建议</span></template>
+      <template #header><span>💡 督导建议 <AILabel label="AI生成" tooltip="此建议由DeepSeek AI生成，不构成专业理财建议" /></span></template>
       <p>{{ coachingMessage }}</p>
     </el-card>
 
@@ -174,6 +178,11 @@
       <el-button type="primary" size="large" @click="$router.push('/my-plan')">📊 查看完整方案</el-button>
       <el-button size="large" @click="$router.push('/ai-chat')">💬 咨询AI助手</el-button>
     </div>
+
+    <DisclaimerBar
+      title="免责声明"
+      message="本方案由 DeepSeek AI 基于您提供的财务数据和当前市场信息生成，仅供理财教育和参考，不构成专业投资建议。产品列表为示例，不代表具体购买推荐。投资有风险，决策需谨慎。市场数据来源：AKShare 公开金融数据接口。"
+    />
   </div>
 </template>
 
@@ -182,6 +191,8 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as echarts from 'echarts'
 import { orchestratorAPI, riskAssessmentAPI } from '../api/client'
+import AILabel from '../components/AILabel.vue'
+import DisclaimerBar from '../components/DisclaimerBar.vue'
 
 const route = useRoute()
 
@@ -497,4 +508,17 @@ onUnmounted(() => {
 .coaching-card p { font-size: 15px; line-height: 1.8; color: #0c4a6e; }
 
 .action-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 30px; }
+
+.data-source-note {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.products-label {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
 </style>

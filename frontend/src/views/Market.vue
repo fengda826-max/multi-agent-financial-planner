@@ -29,7 +29,7 @@
       <!-- AI 研判 -->
       <el-card class="analysis-card">
         <template #header>
-          <span>📝 AI 市场研判</span>
+          <span>📝 AI 市场研判 <AILabel label="AI分析" tooltip="预期收益和波动率为AI推断，非量化模型输出，仅供参考" /></span>
         </template>
         <div class="recommendation">
           <strong>整体建议：</strong>{{ overallRecommendation }}
@@ -49,12 +49,19 @@
         </div>
       </el-card>
     </template>
+
+    <DisclaimerBar
+      v-if="hasData"
+      message="市场原始数据来自 AKShare 公开金融接口，可能存在延迟。预期收益率和配置建议由 DeepSeek AI 生成，仅供参考，不构成投资建议。"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { orchestratorAPI } from '../api/client'
+import AILabel from '../components/AILabel.vue'
+import DisclaimerBar from '../components/DisclaimerBar.vue'
 
 const hasData = ref(false)
 const marketData = ref<any>({})
