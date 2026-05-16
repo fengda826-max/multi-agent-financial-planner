@@ -29,8 +29,11 @@
               v-model="form.username"
               placeholder="用户名"
               size="large"
-              :prefix-icon="UserFilled"
-            />
+            >
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="#94a3b8" stroke-width="1.3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#94a3b8" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </template>
+            </el-input>
           </el-form-item>
           <el-form-item>
             <el-input
@@ -38,10 +41,13 @@
               type="password"
               placeholder="密码"
               size="large"
-              :prefix-icon="Lock"
               show-password
               @keyup.enter="handleLogin"
-            />
+            >
+              <template #prefix>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.3" stroke="#94a3b8" stroke-width="1.3"/><path d="M5.5 7V4.5a2.5 2.5 0 015 0V7" stroke="#94a3b8" stroke-width="1.3" stroke-linecap="round"/></svg>
+              </template>
+            </el-input>
           </el-form-item>
           <el-form-item>
             <el-button
@@ -75,9 +81,6 @@ import { authAPI } from '../api/client'
 const router = useRouter()
 const loading = ref(false)
 const form = ref({ username: '', password: '' })
-
-const UserFilled = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="#94a3b8" stroke-width="1.3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#94a3b8" stroke-width="1.3" stroke-linecap="round"/></svg>')
-const Lock = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.3" stroke="#94a3b8" stroke-width="1.3"/><path d="M5.5 7V4.5a2.5 2.5 0 015 0V7" stroke="#94a3b8" stroke-width="1.3" stroke-linecap="round"/></svg>')
 
 const handleLogin = async () => {
   loading.value = true
