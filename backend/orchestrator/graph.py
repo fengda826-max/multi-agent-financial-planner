@@ -12,10 +12,12 @@ AGENT_URLS = {
 
 
 def _update_progress(user_id: str, step: str, **kwargs):
-    """更新内存中的进度状态（供 /status 轮询）"""
+    """更新内存中的进度状态（供 /status 轮询获取中间结果）"""
     if user_id in user_states:
         user_states[user_id]["current_step"] = step
-        user_states[user_id].update(kwargs)
+        for key, value in kwargs.items():
+            if value:  # 只更新有数据的字段
+                user_states[user_id][key] = value
 
 
 async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
@@ -42,11 +44,13 @@ async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
             )
             result = response.json()
 
-        return {
+        return_data = {
             "user_profile": result.get("profile", {}),
             "needs_followup": result.get("needs_followup", False),
             "current_step": "profile_complete"
         }
+        _update_progress(user_id, "profile_complete", user_profile=result.get("profile", {}))
+        return return_data
     except Exception as e:
         print(f"Profile agent error: {e}")
         return {
@@ -80,6 +84,7 @@ async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
 
             result = response.json()
 
+        _update_progress(state["user_id"], "market_complete", market_analysis=result)
         return {
             "market_analysis": result,
             "current_step": "market_complete"
@@ -116,6 +121,7 @@ async def call_strategy_agent(state: FinancialPlanningState) -> Dict[str, Any]:
 
             result = response.json()
 
+        _update_progress(state["user_id"], "strategy_complete", strategy=result)
         return {
             "strategy": result,
             "current_step": "strategy_complete"
@@ -151,6 +157,7 @@ async def call_coaching_agent(state: FinancialPlanningState) -> Dict[str, Any]:
         "action": result.get("action", "none")
     }
 
+    _update_progress(state["user_id"], "coaching_complete", coaching_history=[coaching_entry])
     return {
         "coaching_history": [coaching_entry],
         "current_step": "coaching_complete"

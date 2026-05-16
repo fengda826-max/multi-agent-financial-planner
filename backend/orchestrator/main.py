@@ -271,19 +271,27 @@ async def get_status(user_id: str):
     """查询当前流程状态 - P0-5: 支持从DB加载"""
     state = user_states.get(user_id)
 
+    # 如果内存状态缺失字段，从数据库补充
+    if state:
+        missing_fields = []
+        if not state.get("strategy", {}).get("four_buckets"):
+            missing_fields.append("strategy")
+        if not state.get("market_analysis", {}).get("market_overview"):
+            missing_fields.append("market_analysis")
+        if not state.get("user_profile", {}).get("lifecycle_stage"):
+            missing_fields.append("user_profile")
+
+        if missing_fields:
+            db_state = await load_strategy_from_db(user_id)
+            if db_state:
+                for field in missing_fields:
+                    if db_state.get(field):
+                        state[field] = db_state[field]
+
     if not state:
-        # 尝试从数据库加载
-        db_state = await load_strategy_from_db(user_id)
-        if db_state:
-            return OrchestratorResponse(
-                user_id=user_id,
-                current_step=db_state.get("current_step", "unknown"),
-                user_profile=db_state.get("user_profile"),
-                market_analysis=db_state.get("market_analysis"),
-                strategy=db_state.get("strategy"),
-                coaching_history=db_state.get("coaching_history")
-            )
-        raise HTTPException(status_code=404, detail="User planning session not found")
+        state = await load_strategy_from_db(user_id)
+        if not state:
+            raise HTTPException(status_code=404, detail="User planning session not found")
 
     return OrchestratorResponse(
         user_id=user_id,
