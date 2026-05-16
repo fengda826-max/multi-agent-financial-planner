@@ -21,10 +21,32 @@
           <p class="update-time">上次更新：{{ lastUpdateTime }}</p>
         </div>
         <div class="health-score">
-          <div class="score-circle">
-            <span class="score-num">{{ healthScore }}</span>
-            <span class="score-label">理财健康分 <AILabel label="AI评估" /></span>
-          </div>
+          <el-popover placement="bottom" :width="280" trigger="hover" :show-after="300">
+            <template #reference>
+              <div class="score-circle clickable">
+                <span class="score-num">{{ healthScore }}</span>
+                <span class="score-label">理财健康分 🟡</span>
+              </div>
+            </template>
+            <div v-if="healthBreakdown.savings" class="breakdown">
+              <div class="bd-item" v-for="item in [
+                { key: 'savings', icon: '💰' },
+                { key: 'emergency', icon: '🏦' },
+                { key: 'investment', icon: '📈' },
+                { key: 'protection', icon: '🛡️' }
+              ]" :key="item.key">
+                <span class="bd-icon">{{ item.icon }}</span>
+                <span class="bd-label">{{ healthBreakdown[item.key]?.label }}</span>
+                <span class="bd-score">{{ healthBreakdown[item.key]?.score }}分</span>
+                <span class="bd-detail">{{ healthBreakdown[item.key]?.detail }}</span>
+              </div>
+              <el-divider style="margin: 8px 0" />
+              <div class="bd-note">🟡 推算值 — 基于用户输入和公式计算</div>
+            </div>
+            <div v-else class="breakdown">
+              <p class="bd-note">暂未生成健康分详情。完成风险测评后生成。</p>
+            </div>
+          </el-popover>
         </div>
       </div>
 
@@ -107,7 +129,6 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { userAPI, riskAssessmentAPI, orchestratorAPI } from '../api/client'
-import AILabel from '../components/AILabel.vue'
 import DisclaimerBar from '../components/DisclaimerBar.vue'
 
 const router = useRouter()
@@ -125,7 +146,13 @@ const strategy = ref<any>(null)
 const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 
+const healthBreakdown = ref<Record<string, { score: number; label: string; detail: string }>>({})
+
 const healthScore = computed(() => {
+  const bd = healthBreakdown.value
+  if (bd?.savings) {
+    return bd.savings.score + bd.emergency.score + bd.investment.score + bd.protection.score
+  }
   if (!profile.value.investable_assets) return 75
   const score = profile.value.latest_assessment?.score || 70
   return Math.min(Math.max(score, 50), 98)
@@ -242,6 +269,9 @@ onMounted(async () => {
         strategy.value = statusData.strategy
         hasPlan.value = true
       }
+      if (statusData.user_profile?.health_score_breakdown) {
+        healthBreakdown.value = statusData.user_profile.health_score_breakdown
+      }
     } catch {
       // 无策略数据，使用空状态
     }
@@ -321,6 +351,17 @@ onMounted(async () => {
   justify-content: center;
   color: #fff;
 }
+
+.score-circle.clickable { cursor: pointer; transition: transform 0.2s; }
+.score-circle.clickable:hover { transform: scale(1.05); }
+
+.breakdown { padding: 4px 0; }
+.bd-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+.bd-icon { font-size: 16px; }
+.bd-label { color: #64748b; width: 50px; }
+.bd-score { font-weight: 600; color: #1e293b; width: 36px; }
+.bd-detail { color: #94a3b8; font-size: 12px; }
+.bd-note { font-size: 12px; color: #94a3b8; text-align: center; }
 
 .score-num {
   font-size: 28px;

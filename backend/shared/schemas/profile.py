@@ -10,6 +10,10 @@ class RiskAssessmentInput(BaseModel):
     expenses: float = Field(..., ge=0)
     risk_tolerance: str
     investment_horizon: str
+    # 可选：详细财务信息
+    total_savings: Optional[float] = None
+    monthly_debt: Optional[float] = None
+    has_insurance: bool = False
 
 
 class RiskAssessmentResponse(BaseModel):

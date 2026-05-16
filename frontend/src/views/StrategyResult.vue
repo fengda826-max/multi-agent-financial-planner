@@ -27,62 +27,69 @@
       </div>
     </div>
 
-    <!-- 1. 用户画像（profile 完成后展示） -->
-    <el-card v-if="profileData" class="section-card profile-card">
-      <template #header>
+    <!-- 1. 用户画像 -->
+    <AnalysisCard
+      v-if="profileData"
+      title="🧑 用户画像分析"
+      credibility="medium"
+      :detailSections="profileDetailSections"
+    >
+      <template #summary>
         <div class="section-header">
-          <span>🧑 用户画像分析 <AILabel label="AI分析" tooltip="此画像由DeepSeek AI基于您的测评数据生成，仅供参考" /></span>
           <el-tag :type="riskTagType">{{ profileData.risk_capacity_label || profileData.risk_capacity }}</el-tag>
         </div>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <div class="profile-metrics">
+              <div class="profile-item">
+                <span class="p-label">生命周期</span>
+                <span class="p-value">{{ lifecycleLabel }}</span>
+                <p class="p-desc">{{ profileData.lifecycle_explanation || '' }}</p>
+              </div>
+              <div class="profile-item">
+                <span class="p-label">投资风格</span>
+                <span class="p-value">{{ profileData.investment_style || '' }}</span>
+              </div>
+              <div class="profile-item">
+                <span class="p-label">风险承受</span>
+                <span class="p-value">{{ profileData.risk_explanation || '' }}</span>
+              </div>
+            </div>
+          </el-col>
+          <el-col :span="12">
+            <div class="profile-score">
+              <div class="health-circle">
+                <span class="health-num">{{ profileData.financial_health_score || '-' }}</span>
+                <span class="health-unit">分</span>
+              </div>
+              <div class="health-label">财务健康指数</div>
+              <p class="health-comment">{{ profileData.financial_health_comment || '' }}</p>
+            </div>
+            <div v-if="profileData.strengths?.length" class="profile-tags">
+              <span class="tag-label">✅ 优势</span>
+              <el-tag v-for="s in profileData.strengths" :key="s" size="small" type="success" effect="plain">{{ s }}</el-tag>
+            </div>
+            <div v-if="profileData.weaknesses?.length" class="profile-tags">
+              <span class="tag-label">⚠️ 需关注</span>
+              <el-tag v-for="w in profileData.weaknesses" :key="w" size="small" type="warning" effect="plain">{{ w }}</el-tag>
+            </div>
+          </el-col>
+        </el-row>
+        <div v-if="profileData.profile_summary" class="profile-summary">
+          💡 {{ profileData.profile_summary }}
+        </div>
       </template>
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <div class="profile-metrics">
-            <div class="profile-item">
-              <span class="p-label">生命周期</span>
-              <span class="p-value">{{ lifecycleLabel }}</span>
-              <p class="p-desc">{{ profileData.lifecycle_explanation || '' }}</p>
-            </div>
-            <div class="profile-item">
-              <span class="p-label">投资风格</span>
-              <span class="p-value">{{ profileData.investment_style || '' }}</span>
-            </div>
-            <div class="profile-item">
-              <span class="p-label">风险承受</span>
-              <span class="p-value">{{ profileData.risk_explanation || '' }}</span>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="12">
-          <div class="profile-score">
-            <div class="health-circle">
-              <span class="health-num">{{ profileData.financial_health_score || '-' }}</span>
-              <span class="health-unit">分</span>
-            </div>
-            <div class="health-label">财务健康指数</div>
-            <p class="health-comment">{{ profileData.financial_health_comment || '' }}</p>
-          </div>
-          <div v-if="profileData.strengths?.length" class="profile-tags">
-            <span class="tag-label">✅ 优势</span>
-            <el-tag v-for="s in profileData.strengths" :key="s" size="small" type="success" effect="plain">{{ s }}</el-tag>
-          </div>
-          <div v-if="profileData.weaknesses?.length" class="profile-tags">
-            <span class="tag-label">⚠️ 需关注</span>
-            <el-tag v-for="w in profileData.weaknesses" :key="w" size="small" type="warning" effect="plain">{{ w }}</el-tag>
-          </div>
-        </el-col>
-      </el-row>
-      <div v-if="profileData.profile_summary" class="profile-summary">
-        💡 {{ profileData.profile_summary }}
-      </div>
-    </el-card>
+    </AnalysisCard>
 
-    <!-- 2. 市场研判（market 完成后展示） -->
-    <el-card v-if="marketData" class="section-card market-card">
-      <template #header>
-        <span>📈 市场研判 <AILabel label="AI分析" tooltip="预期收益和波动率为AI基于当前市场数据推断，非量化模型输出" /></span>
-      </template>
-      <el-row :gutter="16">
+    <!-- 2. 市场研判 -->
+    <AnalysisCard
+      v-if="marketData"
+      title="📈 市场研判"
+      credibility="high"
+      :detailSections="marketDetailSections"
+    >
+      <template #summary>
+        <el-row :gutter="16">
         <el-col :span="8" v-for="(info, asset) in marketData.market_overview" :key="asset">
           <div class="asset-item">
             <div class="asset-name">{{ assetNames[asset] || asset }}</div>
@@ -104,9 +111,10 @@
       <div class="data-source-note">
         市场原始数据来自 AKShare 公开金融数据接口（沪深300、创业板指、国债收益率、CPI），AI 据此生成研判。数据可能存在延迟，仅供参考。
       </div>
-    </el-card>
+      </template>
+    </AnalysisCard>
 
-    <!-- 3. 策略方案（strategy 完成后展示） -->
+    <!-- 3. 策略方案 -->
     <template v-if="strategy">
       <!-- 环形饼图 -->
       <el-row :gutter="20">
@@ -167,11 +175,16 @@
       </el-row>
     </template>
 
-    <!-- 4. 督导建议（coaching 完成后展示） -->
-    <el-card v-if="coachingMessage" class="coaching-card">
-      <template #header><span>💡 督导建议 <AILabel label="AI生成" tooltip="此建议由DeepSeek AI生成，不构成专业理财建议" /></span></template>
-      <p>{{ coachingMessage }}</p>
-    </el-card>
+    <!-- 4. 督导建议 -->
+    <AnalysisCard
+      v-if="coachingMessage"
+      title="💡 督导建议"
+      credibility="low"
+    >
+      <template #summary>
+        <p>{{ coachingMessage }}</p>
+      </template>
+    </AnalysisCard>
 
     <!-- 操作按钮 -->
     <div v-if="allComplete" class="action-buttons">
@@ -191,8 +204,8 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as echarts from 'echarts'
 import { orchestratorAPI, riskAssessmentAPI } from '../api/client'
-import AILabel from '../components/AILabel.vue'
 import DisclaimerBar from '../components/DisclaimerBar.vue'
+import AnalysisCard from '../components/AnalysisCard.vue'
 
 const route = useRoute()
 
@@ -250,6 +263,51 @@ const riskTagType = computed(() => {
 const frequencyLabel = computed(() => {
   const freq = strategy.value?.rebalance_triggers?.review_frequency
   return freq === 'quarterly' ? '每季度' : freq === 'monthly' ? '每月' : freq || ''
+})
+
+const profileDetailSections = computed(() => {
+  const bd = profileData.value?.health_score_breakdown
+  if (!bd) return []
+  return [{
+    title: '📊 健康分计算方法',
+    content: `财务健康评分由4个维度组成（满分100）：
+• 储蓄力（0-30分）：储蓄率越高得分越高 — 当前${bd.savings?.detail || '-'}，得分${bd.savings?.score || 0}
+• 应急力（0-30分）：应急储备覆盖月数越多得分越高 — 当前${bd.emergency?.detail || '-'}，得分${bd.emergency?.score || 0}
+• 投资力（10-20分）：投资期限越长越适合权益配置 — 当前${bd.investment?.detail || '-'}，得分${bd.investment?.score || 0}
+• 保障力（10-20分）：已配置保险则得分更高 — 当前${bd.protection?.detail || '-'}，得分${bd.protection?.score || 0}
+
+评分由确定性公式计算，不含AI主观判断。`
+  }, {
+    title: '📡 数据来源',
+    content: '生命周期阶段根据年龄规则判定（<35积累期，35-50巩固期，>50分配期）。投资风格根据风险偏好+年龄组合映射。优劣势基于储蓄率、应急月数、负债率、保险配置等真实指标触发规则生成。画像总结由AI基于以上数据撰写。'
+  }]
+})
+
+const marketDetailSections = computed(() => {
+  const cm = marketData.value?.computed_metrics
+  if (!cm) return [{
+    title: '📡 数据来源',
+    content: '市场原始数据来自AKShare公开金融数据接口（东方财富、中国债券信息网、国家统计局）。预期收益率和波动率由近5年日线数据统计计算（年化收益=日均收益×252，年化波动率=日收益标准差×√252）。AI仅生成风险因素和定性建议。'
+  }]
+  return [{
+    title: '📊 计算方法',
+    content: `权益（沪深300）：基于近5年日线数据统计
+• 年化收益 = 日均收益率 × 252 = ${(cm.equity_return * 100).toFixed(1)}%
+• 年化波动率 = 日收益率标准差 × √252 = ${(cm.equity_vol * 100).toFixed(1)}%
+• 最大回撤 = 区间内最高点到最低点的跌幅 = ${(cm.equity_max_dd * 100).toFixed(1)}%
+• PE(TTM) = ${cm.cs300_pe || '暂缺'}（${cm.cs300_pe_percentile || '分位数据暂缺'}）
+• 股权风险溢价 = 1/PE - 10年国债收益率 = ${(cm.erp * 100).toFixed(1)}%
+
+债券：预期收益 = 当前10年国债收益率 = ${(cm.bond_yield || 0).toFixed(2)}%，波动率通常2-5%
+
+⚠️ 历史收益不代表未来表现。统计基于过去数据，不包含对未来预测。`
+  }, {
+    title: '📡 数据来源',
+    content: `• 沪深300行情/PE → AKShare (东方财富) | 更新时间：${marketData.value?.data_timestamp || '策略生成时'}
+• 10年国债收益率 → AKShare (中国债券信息网)
+• CPI → AKShare (国家统计局)
+• 风险因素和定性建议 → DeepSeek AI（基于计算好的量化指标生成）`
+  }]
 })
 
 function formatAmount(allocation: number, total: number): string {
