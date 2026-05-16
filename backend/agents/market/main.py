@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from agents.market.agent import MarketAnalysisAgent
 import asyncio
 import logging
@@ -21,6 +21,8 @@ class MarketAnalysisResponse(BaseModel):
     market_overview: Dict[str, Any]
     risk_factors: List[str]
     overall_recommendation: str
+    computed_metrics: Optional[Dict[str, Any]] = None
+    data_timestamp: Optional[str] = None
 
 
 async def fetch_real_market_data() -> Dict[str, Any]:
@@ -137,7 +139,13 @@ async def analyze_market(request: MarketAnalysisRequest):
             market_data = get_default_market_data()
 
         result = await agent.analyze(market_data)
-        return MarketAnalysisResponse(**result)
+        return MarketAnalysisResponse(
+            market_overview=result["market_overview"],
+            risk_factors=result["risk_factors"],
+            overall_recommendation=result["overall_recommendation"],
+            computed_metrics=result.get("computed_metrics"),
+            data_timestamp=result.get("data_timestamp", ""),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
