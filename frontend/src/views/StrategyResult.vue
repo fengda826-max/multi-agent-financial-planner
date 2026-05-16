@@ -2,37 +2,29 @@
   <div class="result-container">
     <h2>您的专属资产配置方案</h2>
 
-    <!-- 进度指示器 -->
-    <div class="progress-bar" v-if="!allComplete">
-      <div class="progress-steps">
-        <div class="step" :class="{ active: stepIndex >= 0, done: stepIndex > 0 }">
-          <span class="step-dot">1</span>
-          <span class="step-label">用户画像</span>
-        </div>
-        <div class="step-line" :class="{ done: stepIndex > 0 }"></div>
-        <div class="step" :class="{ active: stepIndex >= 1, done: stepIndex > 1 }">
-          <span class="step-dot">2</span>
-          <span class="step-label">市场研判</span>
-        </div>
-        <div class="step-line" :class="{ done: stepIndex > 1 }"></div>
-        <div class="step" :class="{ active: stepIndex >= 2, done: stepIndex > 2 }">
-          <span class="step-dot">3</span>
-          <span class="step-label">配置方案</span>
-        </div>
-        <div class="step-line" :class="{ done: stepIndex > 2 }"></div>
-        <div class="step" :class="{ active: stepIndex >= 3, done: stepIndex > 3 }">
-          <span class="step-dot">4</span>
-          <span class="step-label">督导建议</span>
-        </div>
-      </div>
-    </div>
+    <!-- Agent 工作台（生成中） -->
+    <AgentWorkbench
+      v-if="!allComplete"
+      :agentSteps="agentSteps"
+      :currentStep="currentStep"
+    />
 
-    <!-- 1. 用户画像 -->
+    <!-- 结果阶段（生成完成）：左右双栏 -->
+    <el-row v-if="allComplete" :gutter="20">
+      <!-- 左侧：概览 -->
+      <el-col :xs="24" :md="10">
+        <div class="overview-panel">
+          <!-- 1. 用户画像 -->
     <AnalysisCard
       v-if="profileData"
       title="🧑 用户画像分析"
       credibility="medium"
       :detailSections="profileDetailSections"
+      @cardClick="buildDetailItem('用户画像分析', 'medium', '原始数据来自用户填报，计算公式为确定性规则，总结文案由AI生成', [
+        {title:'① 输入数据', text: '年龄、收入、支出、风险偏好、投资期限 → 来自用户填报\n存款、负债、保险 → 来自用户填报或系统估算'},
+        {title:'② 计算方法', text: profileDetailSections[0]?.content || '基于储蓄率、应急月数、投资期限、保险配置4维度加权评分'},
+        {title:'③ 数据溯源', text: '🟡 推算值 — 原始输入: 用户填报 | 评分: 确定性公式 | 总结: AI文案'}
+      ])"
     >
       <template #summary>
         <div class="section-header">
@@ -186,6 +178,17 @@
       </template>
     </AnalysisCard>
 
+        </div>
+      </el-col>
+      <!-- 右侧：详情面板 -->
+      <el-col :xs="24" :md="14" class="detail-col">
+        <DetailPanel
+          :activeItem="activeDetailItem"
+          @close="activeDetailItem = null"
+        />
+      </el-col>
+    </el-row>
+
     <!-- 操作按钮 -->
     <div v-if="allComplete" class="action-buttons">
       <el-button type="primary" size="large" @click="$router.push('/my-plan')">📊 查看完整方案</el-button>
@@ -206,6 +209,8 @@ import * as echarts from 'echarts'
 import { orchestratorAPI, riskAssessmentAPI } from '../api/client'
 import DisclaimerBar from '../components/DisclaimerBar.vue'
 import AnalysisCard from '../components/AnalysisCard.vue'
+import AgentWorkbench from '../components/AgentWorkbench.vue'
+import DetailPanel from '../components/DetailPanel.vue'
 
 const route = useRoute()
 
@@ -223,6 +228,13 @@ let pieChart: echarts.ECharts | null = null
 let stressChart: echarts.ECharts | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
+const agentSteps = ref<Record<string, any[]>>({})
+const activeDetailItem = ref<any>(null)
+
+function buildDetailItem(label: string, credibility: string, source: string, content: Array<{ title: string; text: string }>) {
+  activeDetailItem.value = { label, credibility, source, content }
+}
+
 // Constants
 const bucketNames: Record<string, string> = {
   living_money: '活钱', stable_money: '稳健', growth_money: '长期', protection_money: '保障'
@@ -236,15 +248,6 @@ const scenarioNames: Record<string, string> = {
 const assetNames: Record<string, string> = {
   equity: '权益', bond: '债券', commodity: '商品'
 }
-
-const stepIndex = computed(() => {
-  if (!currentStep.value) return -1
-  if (allComplete.value) return 4
-  if (strategy.value) return 3
-  if (marketData.value) return 2
-  if (profileData.value) return 1
-  return 0
-})
 
 const currentStep = ref('')
 
@@ -364,6 +367,11 @@ async function pollStatus() {
     const step = status.current_step
     if (step !== currentStep.value) {
       currentStep.value = step
+    }
+
+    // Agent workbench steps
+    if (status.agent_steps) {
+      agentSteps.value = { ...status.agent_steps }
     }
 
     // Progressive disclosure: show each section as it becomes available

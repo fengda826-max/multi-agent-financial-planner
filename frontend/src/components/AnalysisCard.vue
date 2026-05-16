@@ -1,5 +1,5 @@
 <template>
-  <el-card class="analysis-card" :class="`trust-${credibility}`">
+  <el-card class="analysis-card" :class="[`trust-${credibility}`, { selected }]" @click="$emit('cardClick')">
     <template #header>
       <div class="card-header">
         <span class="card-title">{{ title }}</span>
@@ -41,10 +41,14 @@ const props = withDefaults(defineProps<{
   credibility: 'high' | 'medium' | 'low'
   detailSections?: Array<{ title: string; content: string }>
   note?: string
+  selected?: boolean
 }>(), {
   detailSections: () => [],
-  note: ''
+  note: '',
+  selected: false,
 })
+
+defineEmits<{ cardClick: [] }>()
 
 const expanded = ref(false)
 
@@ -64,7 +68,11 @@ export default { name: 'AnalysisCard' }
 <style scoped>
 .analysis-card {
   margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
+.analysis-card:hover { border-color: #94a3b8; }
+.analysis-card.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
 
 .trust-high { border-left: 3px solid #10b981; }
 .trust-medium { border-left: 3px solid #f59e0b; }

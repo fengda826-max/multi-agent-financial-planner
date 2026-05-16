@@ -28,6 +28,34 @@ class MarketAnalysisAgent:
         # 2. LLM 生成风险因素和定性建议（基于计算好的数据）
         qualitative = await self._generate_qualitative(market_data, computed)
 
+        # 3. 收集计算步骤
+        steps = []
+        steps.append({"step": "fetch_data", "label": "获取市场原始数据",
+            "detail": f"沪深300日线(5年) + 10年国债收益率 + PE(TTM) + 宏观指标(PMI/CPI/M2/社融)\n"
+                      f"数据源: AKShare → 东方财富/中债登/统计局/央行\n时间: {computed.get('data_timestamp', '')}"})
+
+        steps.append({"step": "calc_stats", "label": "计算权益统计指标",
+            "detail": f"时段: 近5年日线数据\n"
+                      f"年化收益率 = 日均收益率 × 252 = {computed['equity_return']*100:.1f}%\n"
+                      f"年化波动率 = 日标准差 × √252 = {computed['equity_vol']*100:.1f}%\n"
+                      f"最大回撤 = {computed['equity_max_dd']*100:.1f}%",
+            "formula": "annual_return = mean(daily_returns)×252; annual_vol = std(daily_returns)×√252"})
+
+        steps.append({"step": "pe_valuation", "label": "计算PE估值分位",
+            "detail": f"当前PE(TTM) = {computed.get('cs300_pe', 'N/A')}\n"
+                      f"当前分位: {computed.get('cs300_pe_percentile', 'N/A')}",
+            "formula": "percentile = (pe_values < current_pe).sum() / len(pe_values)"})
+
+        steps.append({"step": "calc_erp", "label": "计算股权风险溢价(ERP)",
+            "detail": f"收益收益率 = 1 / PE(TTM) = {1/computed.get('cs300_pe',13.82)*100:.1f}%\n"
+                      f"ERP = 收益收益率 - 10年国债{computed['bond_yield']:.2f}% = {computed['erp']*100:.1f}%\n"
+                      f"判断: {'ERP>6%→有吸引力' if computed['erp']>0.06 else 'ERP>3%→正常' if computed['erp']>0.03 else 'ERP偏低→估值偏高'}",
+            "formula": "ERP = 1/PE_TTM - 10Y_bond_yield"})
+
+        steps.append({"step": "qualitative", "label": "AI生成定性分析",
+            "detail": "风险因素列表和整体建议由DeepSeek AI基于以上量化指标生成\n所有数字均为统计计算，AI仅生成文本解释",
+            "source": "AI"})
+
         return {
             "market_overview": {
                 "equity": {
@@ -53,7 +81,8 @@ class MarketAnalysisAgent:
             "risk_factors": qualitative.get("risk_factors", ["市场波动风险", "利率风险"]),
             "overall_recommendation": qualitative.get("overall_recommendation", "建议均衡配置"),
             "data_timestamp": computed.get("data_timestamp", ""),
-            "computed_metrics": computed,  # 供前端详情展示
+            "computed_metrics": computed,
+            "computation_steps": steps,
         }
 
     def _compute_market_metrics(self, market_data: Dict[str, Any]) -> Dict[str, Any]:

@@ -40,7 +40,26 @@
               <el-option label="5年以上" value="10y+" />
             </el-select>
           </el-form-item>
+          </el-form-item>
         </el-form>
+        <el-divider />
+        <el-button link type="primary" @click="fullMode = !fullMode" class="full-mode-toggle">
+          {{ fullMode ? '收起完整财务信息 ▲' : '想获得更精准的分析？展开完整财务信息 ▼' }}
+        </el-button>
+        <div v-show="fullMode" class="optional-fields">
+          <el-form :model="optionalFields">
+            <el-form-item label="已有存款/投资（元）">
+              <el-input-number v-model="optionalFields.total_savings" :min="0" :step="50000" placeholder="已存下的钱+已投资的金额" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="月度负债（元）">
+              <el-input-number v-model="optionalFields.monthly_debt" :min="0" :step="1000" placeholder="房贷/车贷/信用卡月还款" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="是否配置保险">
+              <el-switch v-model="optionalFields.has_insurance" active-text="已配置" inactive-text="未配置" />
+            </el-form-item>
+          </el-form>
+          <p class="optional-note">以上字段为可选项，填写后可获得更精准的财务画像分析，不填则使用系统估算值</p>
+        </div>
         <el-button @click="currentStep--">上一步</el-button>
         <el-button type="primary" @click="submitAssessment">提交测评</el-button>
       </div>
@@ -59,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { riskAssessmentAPI, orchestratorAPI } from '../api/client'
@@ -67,6 +86,12 @@ import { riskAssessmentAPI, orchestratorAPI } from '../api/client'
 const router = useRouter()
 const currentStep = ref(0)
 const generating = ref(false)
+const fullMode = ref(false)
+const optionalFields = ref({
+  total_savings: null as number | null,
+  monthly_debt: null as number | null,
+  has_insurance: false,
+})
 const form = ref({
   age: 30,
   income: 20000,
@@ -75,9 +100,18 @@ const form = ref({
   investment_horizon: '5y'
 })
 
+const fullAssessmentData = computed(() => ({
+  ...form.value,
+  ...(fullMode.value ? {
+    total_savings: optionalFields.value.total_savings,
+    monthly_debt: optionalFields.value.monthly_debt,
+    has_insurance: optionalFields.value.has_insurance,
+  } : {}),
+}))
+
 const submitAssessment = async () => {
   try {
-    await riskAssessmentAPI.submit(form.value)
+    await riskAssessmentAPI.submit(fullAssessmentData.value)
     currentStep.value = 2
     ElMessage.success('测评提交成功')
   } catch (error: any) {
@@ -98,7 +132,7 @@ const generateStrategy = async () => {
     // 启动后台生成
     await orchestratorAPI.start({
       user_id: userId,
-      risk_assessment: form.value
+      risk_assessment: fullAssessmentData.value
     })
 
     // 立即跳转到结果页，渐进展示

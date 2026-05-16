@@ -68,5 +68,6 @@ export interface OrchestratorStatusResponse {
   market_analysis: Record<string, any> | null
   strategy: StrategyResult | null
   coaching_history: CoachingEntry[] | null
+  agent_steps: Record<string, any[]> | null
   error: string | null
 }

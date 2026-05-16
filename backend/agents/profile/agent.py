@@ -164,6 +164,53 @@ class UserProfileAgent:
             f"财务健康评分{financial_health_score}分。"
         )
 
+        # === 7. 收集计算步骤（供前端工作台和详情面板使用） ===
+        steps = []
+
+        steps.append({"step": "read_input", "label": "读取用户数据",
+            "detail": f"年龄{age}岁，月收入¥{income:,}，月支出¥{expenses:,}，"
+                      f"可投资资产¥{investable:,}，风险偏好{risk_tolerance}，投资期限{investment_horizon}"
+                      f"{'，存款¥' + f'{total_savings:,}' if total_savings else ''}"
+                      f"{'，月负债¥' + f'{monthly_debt:,}' if monthly_debt else ''}"
+                      f"{'，有保险' if has_insurance else '，无保险'}"})
+
+        steps.append({"step": "calc_savings_rate", "label": "计算储蓄率",
+            "detail": f"储蓄率 = (月收入{income} - 月支出{expenses}) / 月收入{income} × 100% = {savings_rate}%",
+            "formula": "savings_rate = (income - expenses) / income × 100"})
+
+        steps.append({"step": "calc_emergency", "label": "计算应急月数",
+            "detail": f"应急月数 = 可投资资产{investable} / 月支出{expenses} = {emergency_months}个月",
+            "formula": "emergency_months = investable_assets / monthly_expenses"})
+
+        if monthly_debt > 0:
+            steps.append({"step": "calc_debt_ratio", "label": "计算负债率",
+                "detail": f"负债率 = 月负债{monthly_debt} / 月收入{income} × 100% = {debt_to_income}%",
+                "formula": "debt_to_income = monthly_debt / income × 100"})
+
+        steps.append({"step": "calc_health_score", "label": "计算财务健康分",
+            "detail": f"储蓄力 = min({savings_rate}×0.8, 30) = {round(savings_score)}\n"
+                      f"应急力 = {emergency_months}≥6→30 | ≥3→20 | ≥1→10 | <1→0 = {emergency_score}\n"
+                      f"投资力 = {invest_score}\n"
+                      f"保障力 = {'已配置→20' if has_insurance else '未配置→10'} = {protection_score}\n"
+                      f"总分 = {round(savings_score)}+{emergency_score}+{invest_score}+{protection_score} = {financial_health_score}",
+            "formula": "health_score = savings(0-30) + emergency(0-30) + investment(10-20) + protection(10-20)"})
+
+        steps.append({"step": "lifecycle", "label": "判定生命周期阶段",
+            "detail": f"年龄{age} {'<35→积累期' if age < 35 else '<50→巩固期' if age < 50 else '≥50→分配期'}: {lifecycle_stage}\n{lifecycle_explanation}",
+            "rule": "age < 35 → accumulation | 35-50 → consolidation | ≥50 → distribution"})
+
+        steps.append({"step": "investment_style", "label": "判定投资风格",
+            "detail": f"风险={risk_capacity}({risk_tolerance}) + 年龄档={age_bracket} → {investment_style}",
+            "rule": "9宫格矩阵: risk_capacity(3) × age_bracket(3) → investment_style"})
+
+        steps.append({"step": "strengths_weaknesses", "label": "生成优劣势",
+            "detail": f"优势: {'; '.join(strengths) if strengths else '无触发条件'}\n需关注: {'; '.join(weaknesses) if weaknesses else '无触发条件'}",
+            "rule": "数据阈值触发规则（储蓄率<15%→偏低, 应急<3月→不足, 负债>40%→偏高, 无保险→建议配置等）"})
+
+        steps.append({"step": "ai_summary", "label": "AI生成画像总结",
+            "detail": "基于以上计算指标，DeepSeek AI 生成自然语言总结文案",
+            "source": "AI"})
+
         return {
             "lifecycle_stage": lifecycle_stage,
             "lifecycle_explanation": lifecycle_explanation,
@@ -186,6 +233,7 @@ class UserProfileAgent:
             "savings_rate": savings_rate,
             "emergency_months": emergency_months,
             "debt_to_income": round(monthly_debt / income * 100, 1) if income > 0 and monthly_debt > 0 else 0,
+            "computation_steps": steps,
         }
 
     async def _generate_narrative(self, user_data: Dict[str, Any], metrics: Dict[str, Any]) -> Dict[str, str]:

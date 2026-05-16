@@ -16,8 +16,14 @@ def _update_progress(user_id: str, step: str, **kwargs):
     if user_id in user_states:
         user_states[user_id]["current_step"] = step
         for key, value in kwargs.items():
-            if value:  # 只更新有数据的字段
-                user_states[user_id][key] = value
+            if value:
+                if key == "computation_steps":
+                    agent_name = step.replace("_complete", "").replace("analyzing_", "").replace("generating_", "")
+                    if "agent_steps" not in user_states[user_id]:
+                        user_states[user_id]["agent_steps"] = {}
+                    user_states[user_id]["agent_steps"][agent_name] = value
+                else:
+                    user_states[user_id][key] = value
 
 
 async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
@@ -44,12 +50,16 @@ async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
             )
             result = response.json()
 
+        profile_data = result.get("profile", {})
+        steps = profile_data.get("computation_steps", [])
         return_data = {
-            "user_profile": result.get("profile", {}),
+            "user_profile": profile_data,
             "needs_followup": result.get("needs_followup", False),
             "current_step": "profile_complete"
         }
-        _update_progress(user_id, "profile_complete", user_profile=result.get("profile", {}))
+        _update_progress(user_id, "profile_complete",
+            user_profile=profile_data,
+            computation_steps=steps)
         return return_data
     except Exception as e:
         print(f"Profile agent error: {e}")
@@ -84,7 +94,10 @@ async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
 
             result = response.json()
 
-        _update_progress(state["user_id"], "market_complete", market_analysis=result)
+        steps = result.get("computation_steps", [])
+        _update_progress(state["user_id"], "market_complete",
+            market_analysis=result,
+            computation_steps=steps)
         return {
             "market_analysis": result,
             "current_step": "market_complete"

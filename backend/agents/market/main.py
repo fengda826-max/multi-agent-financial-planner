@@ -23,6 +23,7 @@ class MarketAnalysisResponse(BaseModel):
     overall_recommendation: str
     computed_metrics: Optional[Dict[str, Any]] = None
     data_timestamp: Optional[str] = None
+    computation_steps: Optional[List[Dict[str, Any]]] = None
 
 
 async def fetch_real_market_data() -> Dict[str, Any]:
@@ -137,6 +138,10 @@ async def analyze_market(request: MarketAnalysisRequest):
         market_data = await fetch_real_market_data()
         if not market_data:
             market_data = get_default_market_data()
+        # 拉取宏观指标
+        macro = await fetch_macro_indicators()
+        if macro:
+            market_data["宏观指标"] = macro
 
         result = await agent.analyze(market_data)
         return MarketAnalysisResponse(
@@ -145,9 +150,63 @@ async def analyze_market(request: MarketAnalysisRequest):
             overall_recommendation=result["overall_recommendation"],
             computed_metrics=result.get("computed_metrics"),
             data_timestamp=result.get("data_timestamp", ""),
+            computation_steps=result.get("computation_steps", []),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def fetch_macro_indicators() -> Dict[str, Any]:
+    """拉取宏观指标（PMI/M2/社融），失败不阻断"""
+    macro = {}
+
+    async def safe_fetch(name, fn):
+        try:
+            result = await asyncio.wait_for(asyncio.to_thread(fn), timeout=10.0)
+            return result
+        except Exception as e:
+            logger.warning(f"Failed to fetch {name}: {e}")
+            return None
+
+    def fetch_pmi():
+        import akshare as ak
+        df = ak.macro_china_pmi()
+        if df is not None and not df.empty:
+            latest = df.iloc[-1]
+            return {"pmi": float(latest.iloc[1]) if len(latest) > 1 else None, "date": str(latest.iloc[0])}
+        return None
+
+    def fetch_m2():
+        import akshare as ak
+        df = ak.macro_china_money_supply()
+        if df is not None and not df.empty:
+            latest = df.iloc[-1]
+            cols = df.columns.tolist()
+            m2_col = next((c for c in cols if 'M2' in str(c)), cols[1] if len(cols) > 1 else None)
+            if m2_col:
+                return {"m2_yoy": float(latest[m2_col]), "date": str(latest.iloc[0])}
+        return None
+
+    def fetch_sf():
+        import akshare as ak
+        df = ak.macro_china_social_financing()
+        if df is not None and not df.empty:
+            latest = df.iloc[-1]
+            cols = df.columns.tolist()
+            val_col = cols[1] if len(cols) > 1 else None
+            if val_col:
+                return {"social_financing": float(latest[val_col]), "date": str(latest.iloc[0])}
+        return None
+
+    results = await asyncio.gather(
+        safe_fetch("PMI", fetch_pmi),
+        safe_fetch("M2", fetch_m2),
+        safe_fetch("社会融资", fetch_sf),
+    )
+    if results[0]: macro.update(results[0])
+    if results[1]: macro.update(results[1])
+    if results[2]: macro.update(results[2])
+    return macro
 
 
 @app.get("/health")

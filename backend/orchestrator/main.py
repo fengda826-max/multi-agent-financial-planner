@@ -55,6 +55,7 @@ async def save_strategy_to_db(user_id: str, state: FinancialPlanningState):
                     correlation_matrix={
                         "computed_metrics": market_analysis.get("computed_metrics", {}),
                         "data_timestamp": market_analysis.get("data_timestamp", ""),
+                        "agent_steps": state.get("agent_steps", {}),
                     }
                 )
                 db.add(market_record)
@@ -155,6 +156,8 @@ async def load_strategy_from_db(user_id: str) -> Optional[Dict[str, Any]]:
                                 "computed_metrics": corr.get("computed_metrics", {}),
                                 "data_timestamp": corr.get("data_timestamp", ""),
                             }
+                            if "agent_steps" in corr:
+                                state["agent_steps"] = corr["agent_steps"]
 
             # 加载用户画像
             profile_result = await db.execute(
