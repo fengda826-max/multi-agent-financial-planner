@@ -341,16 +341,27 @@ onMounted(async () => {
 }
 
 .score-circle {
-  width: 100px;
-  height: 100px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(145deg, #1a3a5c, #0F2247);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  position: relative;
+  box-shadow: 0 4px 24px rgba(15,34,71,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
 }
+.score-circle::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(200,150,108,0.4), transparent 60%);
+  z-index: -1;
+}
+.score-num { font-family: 'Georgia', serif; font-size: 28px; font-weight: 700; color: #C8956C; line-height: 1.1; }
+.score-label { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
 
 .score-circle.clickable { cursor: pointer; transition: transform 0.2s; }
 .score-circle.clickable:hover { transform: scale(1.05); }
