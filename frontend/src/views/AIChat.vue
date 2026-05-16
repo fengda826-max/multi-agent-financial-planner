@@ -6,8 +6,10 @@
         <div v-if="messages.length === 0" class="chat-welcome">
           <div class="welcome-icon">🤖</div>
           <h2>{{ welcomeMessage }}</h2>
-          <p v-if="hasStrategy">您可以向我咨询任何理财相关的问题</p>
-          <p class="disclaimer-hint">* AI回答基于您的数据和市场信息生成，仅供参考，不构成投资建议</p>
+          <template v-if="hasStrategy">
+            <p>您可以向我咨询任何理财相关的问题</p>
+            <p class="disclaimer-hint">* AI回答基于您的数据和市场信息生成，仅供参考，不构成投资建议</p>
+          </template>
           <div v-else class="no-strategy-hint">
             <p>您还没有生成配置方案，建议先完成测评让我更好地为您分析</p>
             <el-button type="primary" @click="$router.push('/risk-assessment')">开始测评</el-button>

@@ -52,7 +52,10 @@ async def save_strategy_to_db(user_id: str, state: FinancialPlanningState):
                     analysis_type="full",
                     market_overview=market_analysis.get("market_overview", {}),
                     risk_factors=market_analysis.get("risk_factors", []),
-                    correlation_matrix={}
+                    correlation_matrix={
+                        "computed_metrics": market_analysis.get("computed_metrics", {}),
+                        "data_timestamp": market_analysis.get("data_timestamp", ""),
+                    }
                 )
                 db.add(market_record)
                 await db.flush()
@@ -145,9 +148,12 @@ async def load_strategy_from_db(user_id: str) -> Optional[Dict[str, Any]]:
                         )
                         ma_record = ma_result.scalar_one_or_none()
                         if ma_record:
+                            corr = ma_record.correlation_matrix or {}
                             state["market_analysis"] = {
                                 "market_overview": ma_record.market_overview or {},
                                 "risk_factors": ma_record.risk_factors or [],
+                                "computed_metrics": corr.get("computed_metrics", {}),
+                                "data_timestamp": corr.get("data_timestamp", ""),
                             }
 
             # 加载用户画像
