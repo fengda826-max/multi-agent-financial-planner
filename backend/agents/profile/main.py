@@ -42,6 +42,7 @@ async def analyze_profile(request: ProfileAnalysisRequest):
                 "savings_rate": result.get("savings_rate", 0),
                 "emergency_months": result.get("emergency_months", 0),
                 "debt_to_income": result.get("debt_to_income", 0),
+                "computation_steps": result.get("computation_steps", []),
             },
             needs_followup=result.get("needs_followup", False),
             followup_questions=result.get("followup_questions", [])
