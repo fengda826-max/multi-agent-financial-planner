@@ -41,10 +41,10 @@ git push origin feature/multi-agent-financial-planner
 postgres + redis + rabbitmq (infrastructure)
   → api-gateway (:8000)         — JWT auth, CORS, routes /api/*, proxies /api/orchestrator/* → orchestrator
   → orchestrator (:8010)        — LangGraph state machine, /start /status /replan /chat
-    → agent-profile (:8001)     — LLM: user lifecycle_stage + risk_capacity
-    → agent-market (:8002)      — AKShare real data + LLM: expected returns, volatility, risk factors
+    → agent-profile (:8001)     — LLM: 12-field user profile (lifecycle, health score, strengths, etc.)
+    → agent-market (:8002)      — AKShare real data (async, 10s timeout/source) + LLM: expected returns, volatility, risk factors
     → agent-strategy (:8003)    — LLM: four_buckets allocation + suitability rules engine
-    → agent-coaching (:8004)    — LLM (temp=0.7): chat advisor + RabbitMQ consumer
+    → agent-coaching (:8004)    — LLM (temp=0.7): chat advisor with 6-message conversation memory + RabbitMQ consumer
 ```
 
 ### LangGraph flow (orchestrator/graph.py)
@@ -56,6 +56,7 @@ profile → [conditional] → market → strategy → [conditional] → coaching
 - `route_after_profile`: checks `needs_followup` → market (normal) or coaching (followup). In practice, always routes to market because orchestrator auto-injects `investable_assets`.
 - `route_after_strategy`: always routes to coaching.
 - Each node calls its agent via HTTP and returns partial state dict. Graph composes final state.
+- **Progressive disclosure**: `_update_progress()` writes intermediate results to `user_states` after each node. Frontend polls `/status` every 2s, shows sections as they become available: profile → market → strategy → coaching.
 
 ### State & persistence (orchestrator/state.py + main.py)
 
@@ -99,7 +100,7 @@ If growth_money.allocation exceeds cap, excess is moved to stable_money.
 | /market | Market | Real-time indicators + AI market analysis |
 | /profile | Profile | User info + risk level + plan history |
 | /risk-assessment | RiskAssessment | 3-step wizard |
-| /strategy-result | StrategyResult | Post-generation result view |
+| /strategy-result | StrategyResult | Progressive disclosure: profile→market→strategy→coaching |
 
 Auth guard: `router.beforeEach` checks `localStorage.token`. API interceptor adds `Authorization: Bearer` header and handles 401 → redirect to /login.
 

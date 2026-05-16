@@ -1,12 +1,24 @@
 # 多Agent协作智能理财规划系统 - 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **状态：** Phase 1-5 全部完成 ✅ | Phase 6-7 待完成  
+> **更新：** 2026-05-16 — 所有 Task 1-12 步骤标记为 [x]
 
-**Goal:** 构建一个基于微服务架构的多Agent协作理财规划系统，包含10个独立服务组件。
+**额外实现（超出原计划）：**
+- 渐进式披露：策略结果页分4阶段展示（画像→市场→策略→督导）
+- 用户画像丰富化：2→12字段（财务健康分、投资风格、优劣势等）
+- AI 对话记忆：Coaching Agent 保留6条对话历史
+- POST /chat 端点 + GET /risk-assessment/history
+- 市场实时数据：AKShare 异步并发4源，10s超时/源
+- 前端：10页面 + Layout导航 + ECharts + 路由鉴权
+- DB 持久化：Portfolio/Strategy/MarketAnalysis 三表
 
-**Architecture:** Orchestrator（LangGraph状态图）编排四个专业Agent（画像、市场、策略、督导），通过RabbitMQ实现事件驱动的条件分支，MCP协议封装金融数据源，FastAPI统一对外暴露HTTP接口。
+**注意：** 以下代码示例中 model 名应为 `deepseek-v4-pro`（非 `deepseek-chat`），Market Agent 用 AKShare 实时数据（非 mock），Profile Agent 返回 12 字段（非 4 字段）。实际代码见源文件。
 
-**Tech Stack:** Python 3.11+, FastAPI, LangGraph, LangChain, MCP, RabbitMQ, PostgreSQL, Redis, Vue 3
+**Goal:** 构建一个基于微服务架构的多Agent协作理财规划系统，包含12个服务组件。
+
+**Architecture:** Orchestrator（LangGraph状态图）编排四个专业Agent，AKShare + LLM 市场分析，FastAPI + Vue3 前后端。
+
+**Tech Stack:** Python 3.11+, FastAPI, LangGraph, LangChain, RabbitMQ, PostgreSQL, Redis, Vue 3, ECharts
 
 ---
 
@@ -65,7 +77,7 @@ financial-planner/
 - Create: `docker-compose.yml`
 - Create: `.env.example`
 
-- [ ] **Step 1: 创建 .env.example**
+- [x] **Step 1: 创建 .env.example**
 
 ```bash
 # Database
@@ -91,7 +103,7 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 ```
 
-- [ ] **Step 2: 创建 docker-compose.yml**
+- [x] **Step 2: 创建 docker-compose.yml**
 
 ```yaml
 version: "3.8"
@@ -141,7 +153,7 @@ volumes:
   pgdata:
 ```
 
-- [ ] **Step 3: 启动基础设施验证**
+- [x] **Step 3: 启动基础设施验证**
 
 ```bash
 cp .env.example .env
@@ -151,7 +163,7 @@ docker compose ps
 
 Expected: 三个服务均显示 healthy 状态
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docker-compose.yml .env.example
@@ -170,7 +182,7 @@ git commit -m "infra: add docker compose with postgres, redis, rabbitmq"
 - Create: `backend/shared/rabbitmq.py`
 - Create: `requirements.txt`
 
-- [ ] **Step 1: 创建 requirements.txt**
+- [x] **Step 1: 创建 requirements.txt**
 
 ```txt
 fastapi>=0.110.0
@@ -195,7 +207,7 @@ akshare>=1.14.0
 
 > **注意：** 版本号使用 `>=` 而非 `==`，避免因小版本差异导致安装失败。`langchain-deepseek` 已移除，改用 `langchain-openai` 配合 DeepSeek 的 OpenAI 兼容接口。
 
-- [ ] **Step 2: 创建 backend/shared/config.py**
+- [x] **Step 2: 创建 backend/shared/config.py**
 
 ```python
 from pydantic_settings import BaseSettings
@@ -250,7 +262,7 @@ def get_settings() -> Settings:
     return Settings()
 ```
 
-- [ ] **Step 3: 创建 backend/shared/database.py**
+- [x] **Step 3: 创建 backend/shared/database.py**
 
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -284,7 +296,7 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 ```
 
-- [ ] **Step 4: 创建 backend/shared/redis_client.py**
+- [x] **Step 4: 创建 backend/shared/redis_client.py**
 
 ```python
 import redis.asyncio as redis
@@ -299,7 +311,7 @@ async def get_redis() -> redis.Redis:
     return redis_client
 ```
 
-- [ ] **Step 5: 创建 backend/shared/rabbitmq.py**
+- [x] **Step 5: 创建 backend/shared/rabbitmq.py**
 
 ```python
 import aio_pika
@@ -339,7 +351,7 @@ async def consume_messages(exchange_name: str, routing_key: str, queue_name: str
     await queue.consume(callback)
 ```
 
-- [ ] **Step 6: 创建 backend/shared/__init__.py**
+- [x] **Step 6: 创建 backend/shared/__init__.py**
 
 ```python
 from shared.config import get_settings
@@ -348,7 +360,7 @@ from shared.redis_client import get_redis
 from shared.rabbitmq import publish_message, consume_messages
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/shared/ requirements.txt
@@ -370,7 +382,7 @@ git commit -m "feat: add shared library with config, database, redis, rabbitmq"
 - Create: `backend/shared/schemas/profile.py`
 - Create: `backend/shared/schemas/portfolio.py`
 
-- [ ] **Step 1: 创建 backend/shared/models/user.py**
+- [x] **Step 1: 创建 backend/shared/models/user.py**
 
 ```python
 import uuid
@@ -392,7 +404,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 ```
 
-- [ ] **Step 2: 创建 backend/shared/models/profile.py**
+- [x] **Step 2: 创建 backend/shared/models/profile.py**
 
 ```python
 import uuid
@@ -428,7 +440,7 @@ class RiskAssessment(Base):
     assessed_at = Column(DateTime, default=datetime.utcnow)
 ```
 
-- [ ] **Step 3: 创建 backend/shared/models/portfolio.py**
+- [x] **Step 3: 创建 backend/shared/models/portfolio.py**
 
 ```python
 import uuid
@@ -473,7 +485,7 @@ class MarketAnalysis(Base):
     analyzed_at = Column(DateTime, default=datetime.utcnow)
 ```
 
-- [ ] **Step 4: 创建 backend/shared/models/audit.py**
+- [x] **Step 4: 创建 backend/shared/models/audit.py**
 
 ```python
 import uuid
@@ -516,7 +528,7 @@ class LangGraphCheckpoint(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 ```
 
-- [ ] **Step 5: 创建 backend/shared/models/__init__.py**
+- [x] **Step 5: 创建 backend/shared/models/__init__.py**
 
 ```python
 from shared.models.user import User
@@ -525,7 +537,7 @@ from shared.models.portfolio import Portfolio, Strategy, MarketAnalysis
 from shared.models.audit import AuditLog, ComplianceRecord, LangGraphCheckpoint
 ```
 
-- [ ] **Step 6: 创建 Pydantic schemas**
+- [x] **Step 6: 创建 Pydantic schemas**
 
 ```python
 # backend/shared/schemas/user.py
@@ -657,7 +669,7 @@ class StrategyGenerateResponse(BaseModel):
     stress_test: Dict[str, StressTestResult]
 ```
 
-- [ ] **Step 7: 创建 backend/shared/schemas/__init__.py**
+- [x] **Step 7: 创建 backend/shared/schemas/__init__.py**
 
 ```python
 from shared.schemas.user import UserCreate, UserResponse, UserLogin, Token
@@ -665,7 +677,7 @@ from shared.schemas.profile import RiskAssessmentInput, RiskAssessmentResponse, 
 from shared.schemas.portfolio import FourBuckets, StrategyGenerateRequest, StrategyGenerateResponse
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add backend/shared/models/ backend/shared/schemas/
@@ -679,7 +691,7 @@ git commit -m "feat: add database models and pydantic schemas"
 **Files:**
 - Create: `backend/shared/init_db.py`
 
-- [ ] **Step 1: 创建 backend/shared/init_db.py**
+- [x] **Step 1: 创建 backend/shared/init_db.py**
 
 ```python
 import asyncio
@@ -697,7 +709,7 @@ if __name__ == "__main__":
     asyncio.run(init_database())
 ```
 
-- [ ] **Step 2: 验证数据库初始化**
+- [x] **Step 2: 验证数据库初始化**
 
 ```bash
 cd backend
@@ -706,7 +718,7 @@ python -m shared.init_db
 
 Expected: 输出 "Database tables created successfully"
 
-- [ ] **Step 3: 验证 PostgreSQL 表创建**
+- [x] **Step 3: 验证 PostgreSQL 表创建**
 
 ```bash
 docker compose exec postgres psql -U financial_planner -d financial_planner -c "\dt"
@@ -714,7 +726,7 @@ docker compose exec postgres psql -U financial_planner -d financial_planner -c "
 
 Expected: 显示 users, user_profiles, risk_assessments, portfolios, strategies, market_analyses, audit_logs, compliance_records, langgraph_checkpoints 表
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/shared/init_db.py
@@ -733,7 +745,7 @@ git commit -m "feat: add database initialization script"
 - Create: `backend/mcp_server/tools/__init__.py`
 - Create: `backend/mcp_server/tools/base.py`
 
-- [ ] **Step 1: 创建 backend/mcp_server/tools/base.py**
+- [x] **Step 1: 创建 backend/mcp_server/tools/base.py**
 
 ```python
 from abc import ABC, abstractmethod
@@ -785,7 +797,7 @@ class DataSourceAdapter(ABC):
         pass
 ```
 
-- [ ] **Step 2: 创建 backend/mcp_server/main.py**
+- [x] **Step 2: 创建 backend/mcp_server/main.py**
 
 ```python
 from mcp.server import Server
@@ -865,7 +877,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/mcp_server/
@@ -880,7 +892,7 @@ git commit -m "feat: add MCP server base framework"
 - Create: `backend/mcp_server/tools/akshare_adapter.py`
 - Modify: `backend/mcp_server/main.py`
 
-- [ ] **Step 1: 创建 backend/mcp_server/tools/akshare_adapter.py**
+- [x] **Step 1: 创建 backend/mcp_server/tools/akshare_adapter.py**
 
 ```python
 import akshare as ak
@@ -1005,7 +1017,7 @@ class AKShareAdapter(DataSourceAdapter):
             return {"error": str(e)}
 ```
 
-- [ ] **Step 2: 更新 backend/mcp_server/main.py 集成适配器**
+- [x] **Step 2: 更新 backend/mcp_server/main.py 集成适配器**
 
 ```python
 from mcp.server import Server
@@ -1107,7 +1119,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/mcp_server/
@@ -1129,7 +1141,7 @@ git commit -m "feat: add AKShare data source adapter with rate limiting"
 - Create: `backend/api_gateway/middleware/__init__.py`
 - Create: `backend/api_gateway/middleware/auth.py`
 
-- [ ] **Step 1: 创建 backend/api_gateway/main.py**
+- [x] **Step 1: 创建 backend/api_gateway/main.py**
 
 ```python
 import os
@@ -1192,7 +1204,7 @@ async def proxy_to_orchestrator(request: Request, path: str):
         )
 ```
 
-- [ ] **Step 2: 创建 backend/api_gateway/middleware/auth.py**
+- [x] **Step 2: 创建 backend/api_gateway/middleware/auth.py**
 
 ```python
 from datetime import datetime, timedelta
@@ -1250,7 +1262,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return {"user_id": user_id}
 ```
 
-- [ ] **Step 3: 创建 backend/api_gateway/routers/auth.py**
+- [x] **Step 3: 创建 backend/api_gateway/routers/auth.py**
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -1304,7 +1316,7 @@ async def login(login_data: UserLogin, db: AsyncSession = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer", "user_id": str(user.id)}
 ```
 
-- [ ] **Step 4: 创建 backend/api_gateway/routers/user.py**
+- [x] **Step 4: 创建 backend/api_gateway/routers/user.py**
 
 ```python
 from fastapi import APIRouter, Depends
@@ -1319,7 +1331,7 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     return {"user_id": current_user["user_id"]}
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/api_gateway/
@@ -1334,7 +1346,7 @@ git commit -m "feat: add API gateway with auth endpoints"
 - Create: `backend/api_gateway/routers/risk_assessment.py`
 - Modify: `backend/api_gateway/main.py`
 
-- [ ] **Step 1: 创建 backend/api_gateway/routers/risk_assessment.py**
+- [x] **Step 1: 创建 backend/api_gateway/routers/risk_assessment.py**
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -1435,7 +1447,7 @@ async def create_risk_assessment(
     return assessment
 ```
 
-- [ ] **Step 2: 更新 main.py 注册路由**
+- [x] **Step 2: 更新 main.py 注册路由**
 
 ```python
 from .routers import auth, user, risk_assessment
@@ -1443,7 +1455,7 @@ from .routers import auth, user, risk_assessment
 app.include_router(risk_assessment.router, prefix="/api/risk-assessment", tags=["风险测评"])
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/api_gateway/routers/risk_assessment.py
@@ -1461,7 +1473,7 @@ git commit -m "feat: add risk assessment API with scoring logic"
 - Create: `backend/agents/profile/main.py`
 - Create: `backend/agents/profile/agent.py`
 
-- [ ] **Step 1: 创建 backend/agents/profile/agent.py**
+- [x] **Step 1: 创建 backend/agents/profile/agent.py**
 
 ```python
 from typing import Dict, Any, List
@@ -1558,7 +1570,7 @@ class UserProfileAgent:
         }
 ```
 
-- [ ] **Step 2: 创建 backend/agents/profile/main.py**
+- [x] **Step 2: 创建 backend/agents/profile/main.py**
 
 ```python
 from fastapi import FastAPI, HTTPException
@@ -1608,7 +1620,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/agents/profile/
@@ -1624,7 +1636,7 @@ git commit -m "feat: add user profile agent with LLM analysis"
 - Create: `backend/agents/market/main.py`
 - Create: `backend/agents/market/agent.py`
 
-- [ ] **Step 1: 创建 backend/agents/market/agent.py**
+- [x] **Step 1: 创建 backend/agents/market/agent.py**
 
 ```python
 from typing import Dict, Any, List
@@ -1707,7 +1719,7 @@ class MarketAnalysisAgent:
         }
 ```
 
-- [ ] **Step 2: 创建 backend/agents/market/main.py**
+- [x] **Step 2: 创建 backend/agents/market/main.py**
 
 ```python
 from fastapi import FastAPI, HTTPException
@@ -1760,7 +1772,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8002)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/agents/market/
@@ -1776,7 +1788,7 @@ git commit -m "feat: add market analysis agent with LLM analysis"
 - Create: `backend/agents/strategy/main.py`
 - Create: `backend/agents/strategy/agent.py`
 
-- [ ] **Step 1: 创建 backend/agents/strategy/agent.py**
+- [x] **Step 1: 创建 backend/agents/strategy/agent.py**
 
 ```python
 from typing import Dict, Any
@@ -1940,7 +1952,7 @@ class StrategyGenerationAgent:
         return strategy
 ```
 
-- [ ] **Step 2: 创建 backend/agents/strategy/main.py**
+- [x] **Step 2: 创建 backend/agents/strategy/main.py**
 
 ```python
 from fastapi import FastAPI, HTTPException
@@ -1984,7 +1996,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8003)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/agents/strategy/
@@ -2000,7 +2012,7 @@ git commit -m "feat: add strategy generation agent with suitability matching"
 - Create: `backend/agents/coaching/main.py`
 - Create: `backend/agents/coaching/agent.py`
 
-- [ ] **Step 1: 创建 backend/agents/coaching/agent.py**
+- [x] **Step 1: 创建 backend/agents/coaching/agent.py**
 
 ```python
 from typing import Dict, Any, List
@@ -2085,7 +2097,7 @@ class CoachingAgent:
         return await self.generate_response(context, event_type="user_deviation")
 ```
 
-- [ ] **Step 2: 创建 backend/agents/coaching/main.py**
+- [x] **Step 2: 创建 backend/agents/coaching/main.py**
 
 ```python
 import os
@@ -2201,7 +2213,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8004)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/agents/coaching/
@@ -2220,7 +2232,7 @@ git commit -m "feat: add coaching agent with event handling"
 - Create: `backend/orchestrator/state.py`
 - Create: `backend/orchestrator/graph.py`
 
-- [ ] **Step 1: 创建 backend/orchestrator/state.py**
+- [x] **Step 1: 创建 backend/orchestrator/state.py**
 
 ```python
 from typing import TypedDict, Annotated, Dict, Any, List, Optional
@@ -2242,7 +2254,7 @@ class FinancialPlanningState(TypedDict):
     error: Optional[str]  # 错误信息
 ```
 
-- [ ] **Step 2: 创建 backend/orchestrator/graph.py**
+- [x] **Step 2: 创建 backend/orchestrator/graph.py**
 
 ```python
 from langgraph.graph import StateGraph, END
@@ -2404,7 +2416,7 @@ def create_graph() -> StateGraph:
 graph = create_graph()
 ```
 
-- [ ] **Step 3: 创建 backend/orchestrator/main.py**
+- [x] **Step 3: 创建 backend/orchestrator/main.py**
 
 ```python
 import os
@@ -2540,7 +2552,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=port)
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/orchestrator/
@@ -2555,7 +2567,7 @@ git commit -m "feat: add orchestrator with LangGraph state graph"
 - Create: `backend/monitors/__init__.py`
 - Create: `backend/monitors/market_monitor.py`
 
-- [ ] **Step 1: 创建 backend/monitors/market_monitor.py**
+- [x] **Step 1: 创建 backend/monitors/market_monitor.py**
 
 ```python
 import asyncio
@@ -2671,7 +2683,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add backend/monitors/
@@ -2685,7 +2697,7 @@ git commit -m "feat: add market monitor with anomaly detection"
 **Files:**
 - Create: `backend/monitors/user_monitor.py`
 
-- [ ] **Step 1: 创建 backend/monitors/user_monitor.py**
+- [x] **Step 1: 创建 backend/monitors/user_monitor.py**
 
 ```python
 import asyncio
@@ -2792,7 +2804,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add backend/monitors/user_monitor.py
@@ -2806,7 +2818,7 @@ git commit -m "feat: add user monitor with drift detection"
 **Files:**
 - Modify: `docker-compose.yml`
 
-- [ ] **Step 1: 更新 docker-compose.yml 添加所有服务**
+- [x] **Step 1: 更新 docker-compose.yml 添加所有服务**
 
 ```yaml
 version: "3.8"
@@ -2995,7 +3007,7 @@ volumes:
   pgdata:
 ```
 
-- [ ] **Step 2: 创建 backend/Dockerfile**
+- [x] **Step 2: 创建 backend/Dockerfile**
 
 ```python
 FROM python:3.11-slim
@@ -3010,7 +3022,7 @@ COPY . .
 CMD ["uvicorn", "api_gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-- [ ] **Step 3: 验证完整部署**
+- [x] **Step 3: 验证完整部署**
 
 ```bash
 docker compose up -d
@@ -3019,7 +3031,7 @@ docker compose ps
 
 Expected: 所有服务显示 healthy 或 running 状态
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docker-compose.yml backend/Dockerfile
@@ -3039,7 +3051,7 @@ git commit -m "feat: add complete docker compose with all services"
 - Create: `frontend/src/App.vue`
 - Create: `frontend/src/api/client.ts`
 
-- [ ] **Step 1: 初始化 Vue 3 项目**
+- [x] **Step 1: 初始化 Vue 3 项目**
 
 ```bash
 cd frontend
@@ -3048,7 +3060,7 @@ npm install
 npm install axios pinia vue-router element-plus
 ```
 
-- [ ] **Step 1.5: 创建 frontend/vite.config.ts 配置代理**
+- [x] **Step 1.5: 创建 frontend/vite.config.ts 配置代理**
 
 ```typescript
 import { defineConfig } from 'vite'
@@ -3072,7 +3084,7 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 2: 创建 frontend/src/api/client.ts**
+- [x] **Step 2: 创建 frontend/src/api/client.ts**
 
 ```typescript
 import axios from 'axios'
@@ -3136,7 +3148,7 @@ export const orchestratorAPI = {
 }
 ```
 
-- [ ] **Step 3: 创建 frontend/src/views/Login.vue**
+- [x] **Step 3: 创建 frontend/src/views/Login.vue**
 
 ```vue
 <template>
@@ -3214,7 +3226,7 @@ h2 {
 </style>
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/
@@ -3230,7 +3242,7 @@ git commit -m "feat: initialize Vue 3 frontend with auth pages"
 - Create: `frontend/src/views/Dashboard.vue`
 - Create: `frontend/src/views/StrategyResult.vue`
 
-- [ ] **Step 1: 创建 frontend/src/views/RiskAssessment.vue**
+- [x] **Step 1: 创建 frontend/src/views/RiskAssessment.vue**
 
 ```vue
 <template>
@@ -3356,7 +3368,7 @@ const generateStrategy = async () => {
 </style>
 ```
 
-- [ ] **Step 2: 创建 frontend/src/views/StrategyResult.vue**
+- [x] **Step 2: 创建 frontend/src/views/StrategyResult.vue**
 
 ```vue
 <template>
@@ -3497,7 +3509,7 @@ onMounted(async () => {
 </style>
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/views/
@@ -3511,7 +3523,7 @@ git commit -m "feat: add risk assessment and strategy result pages"
 **Files:**
 - Create: `backend/tests/test_integration.py`
 
-- [ ] **Step 1: 创建 backend/tests/test_integration.py**
+- [x] **Step 1: 创建 backend/tests/test_integration.py**
 
 ```python
 import pytest
@@ -3642,7 +3654,7 @@ if __name__ == "__main__":
     asyncio.run(test_health_check())
 ```
 
-- [ ] **Step 2: 运行集成测试**
+- [x] **Step 2: 运行集成测试**
 
 ```bash
 cd backend
@@ -3651,7 +3663,7 @@ pytest tests/test_integration.py -v
 
 Expected: 健康检查和注册登录测试通过，完整流程测试可能因Agent服务未启动而失败
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/tests/
