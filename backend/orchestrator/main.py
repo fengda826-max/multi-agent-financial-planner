@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import httpx
 from orchestrator.graph import graph
-from orchestrator.state import FinancialPlanningState, user_states
+from orchestrator.state import FinancialPlanningState, user_states, agent_steps_store
 from shared.database import async_session
 from shared.models.portfolio import Portfolio, Strategy, MarketAnalysis
 from shared.models.profile import UserProfile
@@ -204,12 +204,10 @@ async def start_planning(request: StartRequest):
     async def run_graph():
         try:
             result = await graph.ainvoke(initial_state)
-            # 保留 _update_progress 写入的 agent_steps（graph.ainvoke 返回的 result 不含此字段）
-            saved_steps = user_states.get(user_id, {}).get("agent_steps", {})
-            # 使用 update 而非赋值，保留已有的 agent_steps 和 polling 轮询到的其他字段
-            user_states[user_id].update(result)
-            if saved_steps:
-                user_states[user_id]["agent_steps"] = saved_steps
+            user_states[user_id] = result
+            # 从独立存储中恢复 agent_steps（_update_progress 写入，graph 不返回）
+            if user_id in agent_steps_store:
+                user_states[user_id]["agent_steps"] = agent_steps_store.pop(user_id)
             await save_strategy_to_db(user_id, result)
         except Exception as e:
             user_states[user_id]["error"] = str(e)

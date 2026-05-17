@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 from typing import Dict, Any
 import httpx
-from orchestrator.state import FinancialPlanningState, user_states
+from orchestrator.state import FinancialPlanningState, user_states, agent_steps_store
 
 AGENT_URLS = {
     "profile": "http://agent-profile:8001",
@@ -19,9 +19,9 @@ def _update_progress(user_id: str, step: str, **kwargs):
             if value:
                 if key == "computation_steps":
                     agent_name = step.replace("_complete", "").replace("analyzing_", "").replace("generating_", "")
-                    if "agent_steps" not in user_states[user_id]:
-                        user_states[user_id]["agent_steps"] = {}
-                    user_states[user_id]["agent_steps"][agent_name] = value
+                    if user_id not in agent_steps_store:
+                        agent_steps_store[user_id] = {}
+                    agent_steps_store[user_id][agent_name] = value
                 else:
                     user_states[user_id][key] = value
 

@@ -19,3 +19,6 @@ class FinancialPlanningState(TypedDict):
 
 # 全局内存状态存储，供 graph 节点和 main 端点共享
 user_states: Dict[str, FinancialPlanningState] = {}
+
+# 独立的 agent_steps 存储，避免被 LangGraph 状态覆盖
+agent_steps_store: Dict[str, Dict[str, list]] = {}
