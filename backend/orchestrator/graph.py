@@ -46,7 +46,7 @@ async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
                     "user_id": state["user_id"],
                     "risk_assessment": risk_assessment
                 },
-                timeout=30.0
+                timeout=120.0
             )
             result = response.json()
 
@@ -63,6 +63,9 @@ async def call_profile_agent(state: FinancialPlanningState) -> Dict[str, Any]:
         return return_data
     except Exception as e:
         print(f"Profile agent error: {e}")
+        _update_progress(user_id, "profile_complete",
+            user_profile={"error": str(e)},
+            computation_steps=[{"step":"error","label":"画像分析超时","detail":f"Profile Agent调用失败: {e}","source":"error"}])
         return {
             "user_profile": {"error": str(e)},
             "needs_followup": False,
@@ -104,6 +107,9 @@ async def call_market_agent(state: FinancialPlanningState) -> Dict[str, Any]:
         }
     except Exception as e:
         print(f"Market agent error: {type(e).__name__}: {e}")
+        _update_progress(state["user_id"], "market_complete",
+            market_analysis={"error": str(e)},
+            computation_steps=[{"step":"error","label":"市场分析超时","detail":f"Market Agent调用失败: {e}","source":"error"}])
         return {
             "market_analysis": {"error": str(e)},
             "current_step": "market_complete"
@@ -122,7 +128,7 @@ async def call_strategy_agent(state: FinancialPlanningState) -> Dict[str, Any]:
                     "profile": state["user_profile"],
                     "market_analysis": state["market_analysis"]
                 },
-                timeout=60.0
+                timeout=120.0
             )
 
             if response.status_code != 200:
@@ -160,7 +166,7 @@ async def call_coaching_agent(state: FinancialPlanningState) -> Dict[str, Any]:
                 "context": context,
                 "strategy": state["strategy"]
             },
-            timeout=30.0
+            timeout=60.0
         )
         result = response.json()
 
