@@ -305,13 +305,19 @@ async def get_status(user_id: str):
         if not state:
             raise HTTPException(status_code=404, detail="User planning session not found")
 
+    # 合并 agent_steps：优先从 state 读取，不存在时从 agent_steps_store 读取
+    steps = state.get("agent_steps")
+    if not steps and user_id in agent_steps_store:
+        steps = agent_steps_store[user_id]
+
     return OrchestratorResponse(
         user_id=user_id,
         current_step=state.get("current_step", "unknown"),
         user_profile=state.get("user_profile"),
         market_analysis=state.get("market_analysis"),
         strategy=state.get("strategy"),
-        coaching_history=state.get("coaching_history")
+        coaching_history=state.get("coaching_history"),
+        agent_steps=steps,
     )
 
 
