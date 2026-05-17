@@ -19,9 +19,14 @@ def _update_progress(user_id: str, step: str, **kwargs):
             if value:
                 if key == "computation_steps":
                     agent_name = step.replace("_complete", "").replace("analyzing_", "").replace("generating_", "")
+                    # 写入独立存储（供 run_graph 读取）
                     if user_id not in agent_steps_store:
                         agent_steps_store[user_id] = {}
                     agent_steps_store[user_id][agent_name] = value
+                    # 同时写入 user_states（供 /status 中间轮询）
+                    if "agent_steps" not in user_states[user_id]:
+                        user_states[user_id]["agent_steps"] = {}
+                    user_states[user_id]["agent_steps"][agent_name] = value
                 else:
                     user_states[user_id][key] = value
 
@@ -147,6 +152,9 @@ async def call_strategy_agent(state: FinancialPlanningState) -> Dict[str, Any]:
         }
     except Exception as e:
         print(f"Strategy agent error: {type(e).__name__}: {e}")
+        _update_progress(state["user_id"], "strategy_complete",
+            strategy={"error": str(e)},
+            computation_steps=[{"step":"error","label":"策略生成超时","detail":f"Strategy Agent调用失败: {e}","source":"error"}])
         return {
             "strategy": {"error": str(e)},
             "current_step": "strategy_complete"
