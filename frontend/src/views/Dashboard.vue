@@ -190,7 +190,7 @@ function formatMoney(val: number | undefined | null): string {
 function goToPlan() {
   const userId = localStorage.getItem('user_id')
   if (userId) {
-    router.push({ path: '/strategy-result', query: { userId } })
+    router.push('/my-plan')
   }
 }
 

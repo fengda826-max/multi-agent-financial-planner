@@ -191,8 +191,7 @@
 
     <!-- 操作按钮 -->
     <div v-if="allComplete" class="action-buttons">
-      <el-button type="primary" size="large" @click="$router.push('/my-plan')">📊 查看完整方案</el-button>
-      <el-button size="large" @click="$router.push('/ai-chat')">💬 咨询AI助手</el-button>
+      <el-button type="primary" size="large" @click="$router.push('/ai-chat')">💬 咨询AI助手</el-button>
     </div>
 
     <DisclaimerBar
