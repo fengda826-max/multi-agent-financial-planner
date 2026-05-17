@@ -37,6 +37,7 @@ class OrchestratorResponse(BaseModel):
     market_analysis: Optional[Dict[str, Any]] = None
     strategy: Optional[Dict[str, Any]] = None
     coaching_history: Optional[list] = None
+    agent_steps: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
@@ -200,17 +201,15 @@ async def start_planning(request: StartRequest):
     user_states[user_id] = initial_state
 
     # 后台执行完整流程
-    # 用可变容器在闭包中捕获 agent_steps
-    captured_steps: Dict[str, Any] = {}
-
     async def run_graph():
         try:
             result = await graph.ainvoke(initial_state)
-            # 从 user_states 中读取执行期间 _update_progress 写入的 agent_steps
-            # （graph.ainvoke 返回的 result 不含此字段）
-            captured_steps.update(user_states.get(user_id, {}).get("agent_steps", {}))
-            user_states[user_id] = result
-            user_states[user_id]["agent_steps"] = captured_steps
+            # 保留 _update_progress 写入的 agent_steps（graph.ainvoke 返回的 result 不含此字段）
+            saved_steps = user_states.get(user_id, {}).get("agent_steps", {})
+            # 使用 update 而非赋值，保留已有的 agent_steps 和 polling 轮询到的其他字段
+            user_states[user_id].update(result)
+            if saved_steps:
+                user_states[user_id]["agent_steps"] = saved_steps
             await save_strategy_to_db(user_id, result)
         except Exception as e:
             user_states[user_id]["error"] = str(e)
@@ -274,7 +273,8 @@ async def replan(request: ReplanRequest):
             user_profile=result.get("user_profile"),
             market_analysis=result.get("market_analysis"),
             strategy=result.get("strategy"),
-            coaching_history=result.get("coaching_history")
+            coaching_history=result.get("coaching_history"),
+            agent_steps=result.get("agent_steps"),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
