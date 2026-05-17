@@ -40,7 +40,6 @@
               <el-option label="5年以上" value="10y+" />
             </el-select>
           </el-form-item>
-          </el-form-item>
         </el-form>
         <el-divider />
         <el-button link type="primary" @click="fullMode = !fullMode" class="full-mode-toggle">
