@@ -200,12 +200,17 @@ async def start_planning(request: StartRequest):
     user_states[user_id] = initial_state
 
     # 后台执行完整流程
+    # 用可变容器在闭包中捕获 agent_steps
+    captured_steps: Dict[str, Any] = {}
+
     async def run_graph():
         try:
             result = await graph.ainvoke(initial_state)
-            # 即时更新内存中的中间状态
+            # 从 user_states 中读取执行期间 _update_progress 写入的 agent_steps
+            # （graph.ainvoke 返回的 result 不含此字段）
+            captured_steps.update(user_states.get(user_id, {}).get("agent_steps", {}))
             user_states[user_id] = result
-            # 持久化到数据库
+            user_states[user_id]["agent_steps"] = captured_steps
             await save_strategy_to_db(user_id, result)
         except Exception as e:
             user_states[user_id]["error"] = str(e)
